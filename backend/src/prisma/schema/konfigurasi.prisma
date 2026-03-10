@@ -1,0 +1,13 @@
+model Konfigurasi {
+  id           Int      @id @default(autoincrement())
+  kunci        String   @unique @db.VarChar(100) // Configuration key
+  nilai        String   @db.Text // Configuration value
+  deskripsi    String?  @db.Text // Description of the config
+  tipe         String   @default("text") @db.VarChar(50) // Type: text, number, email, tel, textarea
+  grup         String   @default("umum") @db.VarChar(50) // Group: umum, kontak, tampilan
+  urutan       Int      @default(0) // Display order
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("konfigurasi")
+}

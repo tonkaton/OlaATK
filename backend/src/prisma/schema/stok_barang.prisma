@@ -1,0 +1,11 @@
+model StokBarang {
+  id             Int      @id @default(autoincrement()) @db.UnsignedInt
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  nama           String
+  harga_satuan   Float
+  jumlah_stok    Int
+
+  @@map("stok_barang")
+}

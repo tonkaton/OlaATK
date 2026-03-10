@@ -1,0 +1,13 @@
+model BarangTerbeli {
+  id              Int     @id @default(autoincrement()) @db.UnsignedInt
+  id_pesanan      Int     @db.UnsignedInt
+
+  nama_barang     String
+  harga_satuan    Float
+  jumlah          Int
+
+  /* Foreign Key Relations */
+  pesanan         Pesanan @relation(fields: [id_pesanan], references: [id])
+
+  @@map("barang_terbeli")
+}

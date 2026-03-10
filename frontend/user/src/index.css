@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* global font family */
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background-color: #ffffff; }
+}
+
+/* small utility */
+.shadow-lg-soft { box-shadow: 0 10px 30px rgba(10,20,50,0.06); }

@@ -1,0 +1,16 @@
+model AkunPelanggan {
+  id               Int          @id @default(autoincrement()) @db.UnsignedInt
+  id_pelanggan     Int          @unique @db.UnsignedInt
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+
+  email            String       @unique
+  nomor_telepon    String       @unique
+  hashed_password  String
+  alamat           String?      @db.Text
+
+  /* Foreign Key Relations */
+  pelanggan        Pelanggan    @relation(fields: [id_pelanggan], references: [id])
+
+  @@map("akun_pelanggan")
+}

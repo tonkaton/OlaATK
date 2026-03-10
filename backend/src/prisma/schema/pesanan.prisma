@@ -1,0 +1,20 @@
+model Pesanan {
+  id              Int             @id @default(autoincrement()) @db.UnsignedInt
+  id_pelanggan    Int             @db.UnsignedInt
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
+
+  jenis_layanan   String
+  nama_file       String?
+  catatan_pesanan String?
+  nilai_pesanan   Float
+
+  status          String          @default("MENUNGGU") // MENUNGGU, DIPROSES, SELESAI, BATAL
+  mode_pesanan    String          @default("ONLINE")   // ONLINE, OFFLINE
+
+  /* Foreign Key Relations */
+  pelanggan       Pelanggan       @relation(fields: [id_pelanggan], references: [id])
+  barangTerbeli   BarangTerbeli[]
+
+  @@map("pesanan")
+}

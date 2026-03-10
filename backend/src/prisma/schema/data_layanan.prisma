@@ -1,0 +1,12 @@
+model DataLayanan {
+  id             Int      @id @default(autoincrement()) @db.UnsignedInt
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  nama           String
+  deskripsi      String
+  nama_icon      String
+  status_layanan Boolean
+
+  @@map("data_layanan")
+}
