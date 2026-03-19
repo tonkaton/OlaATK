@@ -11,23 +11,22 @@ export default function Order() {
 
   // --- STATE DATA DIRI ---
   const [contactForm, setContactForm] = useState({ name: '', phone: '', alamat: '' })
-  
+
   // --- STATE LOGIC PEMESANAN ---
   const [selectedService, setSelectedService] = useState(null)
-  
+
   const [orderDetails, setOrderDetails] = useState({
     paperSize: 'A4',
     colorMode: 'Hitam Putih', // Default
     copies: 1, // Jumlah Rangkap (Bundel)
     bindingType: 'Tidak Ada',
-    
+
     // Logic Baru: Halaman Spesifik
     bwPages: 0,   // Jumlah halaman B/W per bundel
     colorPages: 0 // Jumlah halaman Warna per bundel
   })
-  
-  const [note, setNote] = useState('')
 
+  const [note, setNote] = useState('')
   // --- STATE FILE ---
   const [file, setFile] = useState(null)
   const [uploadedFileName, setUploadedFileName] = useState(null)
@@ -49,10 +48,10 @@ export default function Order() {
           const response = await authAPI.getPelangganByUserId(user.userId)
           if (response.success && response.data?.pelanggan) {
             const { nama_lengkap, nomor_telepon, alamat } = response.data.pelanggan
-            setContactForm({ 
-              name: nama_lengkap || '', 
-              phone: nomor_telepon || '', 
-              alamat: alamat || '' 
+            setContactForm({
+              name: nama_lengkap || '',
+              phone: nomor_telepon || '',
+              alamat: alamat || ''
             })
           }
         } catch (err) { console.error(err) }
@@ -67,8 +66,8 @@ export default function Order() {
       try {
         const response = await servicesAPI.getActive()
         if (response.success && response.data?.dataLayanan) {
-          const onlineServices = response.data.dataLayanan.filter(service => 
-            service.nama.toLowerCase().includes('cetak') || 
+          const onlineServices = response.data.dataLayanan.filter(service =>
+            service.nama.toLowerCase().includes('cetak') ||
             service.nama.toLowerCase().includes('print')
           )
           setServices(onlineServices)
@@ -132,7 +131,7 @@ export default function Order() {
     const copies = parseInt(orderDetails.copies) || 1
 
     if (sName.toLowerCase().includes('cetak') || sName.toLowerCase().includes('print')) {
-      
+
       // LOGIC 1: MODE CAMPUR (MIXED)
       if (orderDetails.colorMode === 'Campur') {
         // Item B/W
@@ -151,7 +150,7 @@ export default function Order() {
             jumlah: parseInt(orderDetails.colorPages) * copies // Halaman x Rangkap
           })
         }
-      } 
+      }
       // LOGIC 2: MODE FULL (BIASA)
       else {
         // Disini kita asumsikan input 'copies' adalah TOTAL LEMBAR kalau mode simple
@@ -166,17 +165,14 @@ export default function Order() {
 
       // Add-on Jilid (Dihitung per bundel/rangkap)
       if (orderDetails.bindingType !== 'Tidak Ada') {
-        // Jika mode campur, asumsinya dia mau jilid sebanyak rangkap
-        // Jika mode simple, kita asumsikan 1 jilid kecuali dia minta beda (tapi logic simple kita anggap 1 order = 1 jilid kumpulan)
-        // Kita bikin simple: Jilid = 1x (Kecuali user note minta lebih, atau logic dikembangkan lagi)
-        // UPDATE: Kita set Jilid sejumlah Copies (Rangkap)
         items.push({
           nama_barang: `Jilid ${orderDetails.bindingType}`,
           harga_satuan: 0,
-          jumlah: orderDetails.colorMode === 'Campur' ? copies : 1 
+          // PERBAIKAN: Berapapun rangkapnya, jilidnya ngikutin. Ga ada lagi logika campur = copies, biasa = 1.
+          jumlah: copies
         })
       }
-    } 
+    }
     // Logic Jilid Langsung (Tanpa Cetak)
     else if (sName.toLowerCase().includes('jilid')) {
       items.push({
@@ -193,6 +189,7 @@ export default function Order() {
         jumlah: copies
       })
     }
+
     return items
   }
 
@@ -206,6 +203,7 @@ export default function Order() {
     }
 
     const isPrintService = selectedService?.nama.toLowerCase().includes('cetak')
+
     if (isPrintService && !file && !uploadedFileName) {
       setError('Mohon upload dokumen yang ingin dicetak')
       return
@@ -221,7 +219,6 @@ export default function Order() {
 
     try {
       setLoading(true)
-
       let finalFileName = uploadedFileName
       if (file && !uploadedFileName) {
         try {
@@ -234,7 +231,7 @@ export default function Order() {
       }
 
       const itemsPayload = generateOrderItems()
-      
+
       const payload = {
         nama_lengkap: contactForm.name,
         nomor_telepon: contactForm.phone,
@@ -248,12 +245,11 @@ export default function Order() {
       }
 
       const response = await ordersAPI.createPublic(payload)
-
       if (response.success) {
         setSuccess(true)
         window.scrollTo(0, 0)
         setTimeout(() => setSuccess(false), 5000)
-        
+
         if(!user) setContactForm({ name:'', phone:'', alamat:'' })
         setFile(null); setUploadedFileName(null);
         setNote('')
@@ -261,7 +257,6 @@ export default function Order() {
       } else {
         setError(response.message || 'Gagal membuat pesanan')
       }
-
     } catch (err) {
       console.error(err)
       setError('Terjadi kesalahan sistem')
@@ -284,14 +279,14 @@ export default function Order() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      
-      <div className="text-left mb-10 mt-6"> 
+
+      <div className="text-left mb-10 mt-6">
         <h1 className="text-3xl font-bold text-gray-800">Buat Pesanan Baru</h1>
         <p className="text-gray-500 mt-2">Pilih layanan, upload file, dan duduk manis.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        
+
         {/* 1. DATA PEMESAN */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -301,19 +296,19 @@ export default function Order() {
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-700">Nama Lengkap</label>
-              <input name="name" value={contactForm.name} onChange={handleContactChange} 
+              <input name="name" value={contactForm.name} onChange={handleContactChange}
                 disabled={user?.userType === 'user' && contactForm.name}
                 className="w-full mt-1 p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-olaTosca outline-none" placeholder="Budi Santoso" />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">WhatsApp</label>
-              <input name="phone" value={contactForm.phone} onChange={handleContactChange} 
+              <input name="phone" value={contactForm.phone} onChange={handleContactChange}
                  disabled={user?.userType === 'user' && contactForm.phone}
                 className="w-full mt-1 p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-olaTosca outline-none" placeholder="08xxxxxxxx" />
             </div>
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-gray-700">Alamat Pengiriman / Jemput</label>
-              <textarea name="alamat" value={contactForm.alamat} onChange={handleContactChange} 
+              <textarea name="alamat" value={contactForm.alamat} onChange={handleContactChange}
                  disabled={user?.userType === 'user' && contactForm.alamat}
                 className="w-full mt-1 p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-olaTosca outline-none" rows="2" placeholder="Jl. Mawar No. 12..." />
             </div>
@@ -328,12 +323,12 @@ export default function Order() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {services.map(srv => (
-              <div 
+              <div
                 key={srv.id}
                 onClick={() => handleServiceSelect(srv)}
                 className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex flex-col items-center justify-center text-center gap-2 h-32
-                  ${selectedService?.id === srv.id 
-                    ? 'border-olaTosca bg-olaTosca/5 text-olaTosca' 
+                  ${selectedService?.id === srv.id
+                    ? 'border-olaTosca bg-olaTosca/5 text-olaTosca'
                     : 'border-gray-100 hover:border-olaTosca/50 text-gray-600'}`}
               >
                 {getIcon(srv.nama_icon)}
@@ -350,9 +345,8 @@ export default function Order() {
               <span className="bg-olaTosca text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
               Detail {selectedService.nama}
             </h2>
-
             <div className="space-y-6">
-              
+
               {/* === KHUSUS CETAK DOKUMEN === */}
               {selectedService.nama.toLowerCase().includes('cetak') && (
                 <>
@@ -381,7 +375,7 @@ export default function Order() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran Kertas</label>
-                      <div className="flex bg-gray-100 p-1 rounded-lg">
+                      <div className="flex bg-gray-11 rounded-lg">
                         {['A4', 'F4 (Folio)'].map(size => (
                           <button key={size} type="button"
                             onClick={() => handleDetailChange('paperSize', size.split(' ')[0])}
@@ -392,7 +386,6 @@ export default function Order() {
                         ))}
                       </div>
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Mode Warna</label>
                       <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -417,8 +410,8 @@ export default function Order() {
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs text-gray-600 mb-1">Jml Halaman Hitam Putih</label>
-                                <input 
-                                    type="number" min="0" 
+                                <input
+                                    type="number" min="0"
                                     value={orderDetails.bwPages}
                                     onChange={(e) => handleDetailChange('bwPages', e.target.value)}
                                     className="w-full p-2 rounded border border-gray-300 focus:ring-olaTosca focus:border-olaTosca"
@@ -426,8 +419,8 @@ export default function Order() {
                             </div>
                             <div>
                                 <label className="block text-xs text-gray-600 mb-1">Jml Halaman Berwarna</label>
-                                <input 
-                                    type="number" min="0" 
+                                <input
+                                    type="number" min="0"
                                     value={orderDetails.colorPages}
                                     onChange={(e) => handleDetailChange('colorPages', e.target.value)}
                                     className="w-full p-2 rounded border border-gray-300 focus:ring-olaTosca focus:border-olaTosca"
@@ -442,7 +435,7 @@ export default function Order() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Jilid Sekalian?</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                        {['Tidak Ada', 'Lakban Biasa', 'Softcover', 'Hardcover'].map(type => (
-                         <div key={type} 
+                         <div key={type}
                           onClick={() => handleDetailChange('bindingType', type)}
                           className={`cursor-pointer px-3 py-2 border rounded-lg text-sm text-center ${orderDetails.bindingType === type ? 'border-olaTosca bg-olaTosca/10 text-olaTosca' : 'border-gray-200 text-gray-600'}`}
                          >
@@ -458,7 +451,7 @@ export default function Order() {
               {selectedService.nama.toLowerCase().includes('jilid') && (
                 <div>
                    <label className="block text-sm font-medium text-gray-700 mb-2">Jenis Jilid</label>
-                   <select 
+                   <select
                     value={orderDetails.bindingType}
                     onChange={(e) => handleDetailChange('bindingType', e.target.value)}
                     className="w-full p-2 border rounded-lg bg-white"
@@ -474,20 +467,20 @@ export default function Order() {
               {/* === JUMLAH COUNTER (RANGKAP/BUNDEL) === */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                   {/* Logic Text Label */}
-                   {orderDetails.colorMode === 'Campur' 
-                        ? 'Mau dicetak berapa rangkap (bundel)?' 
-                        : selectedService.nama.includes('Jilid') ? 'Jumlah Buku/Bundel' : 'Jumlah Lembar / Copy'}
+                  {/* Logic Text Label */}
+                  {orderDetails.colorMode === 'Campur'
+                       ? 'Mau dicetak berapa rangkap (bundel)?'
+                       : selectedService.nama.includes('Jilid') ? 'Jumlah Buku/Bundel' : 'Jumlah Lembar / Copy'}
                 </label>
                 <div className="flex items-center gap-4">
-                  <button type="button" 
+                  <button type="button"
                     onClick={() => handleDetailChange('copies', Math.max(1, orderDetails.copies - 1))}
                     className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
                   >
                     <Minus size={18}/>
                   </button>
                   <span className="text-xl font-bold w-12 text-center">{orderDetails.copies}</span>
-                  <button type="button" 
+                  <button type="button"
                     onClick={() => handleDetailChange('copies', orderDetails.copies + 1)}
                     className="w-10 h-10 rounded-full bg-olaTosca text-white flex items-center justify-center hover:bg-olaBlue"
                   >
@@ -504,15 +497,14 @@ export default function Order() {
               {/* Catatan Tambahan */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Tambahan (Opsional)</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Contoh: Halaman 5 jangan dijilid..."
                   className="w-full p-2 border rounded-lg text-sm"
                 />
               </div>
-
             </div>
           </motion.div>
         )}
@@ -536,14 +528,13 @@ export default function Order() {
           )}
         </AnimatePresence>
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={loading || uploading || success}
           className="w-full py-4 bg-gradient-to-r from-olaTosca to-olaBlue text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
         >
           {loading ? 'Sedang Memproses...' : uploading ? 'Mengupload Dokumen...' : 'Kirim Pesanan Sekarang'}
         </button>
-
       </form>
     </div>
   )
