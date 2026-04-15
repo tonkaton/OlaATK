@@ -12,6 +12,8 @@
 |   |   |   |   |   |-- migration.sql
 |   |   |   |   |-- 20260128050732_update_pesanan
 |   |   |   |   |   |-- migration.sql
+|   |   |   |   |-- 20260416000000_phase2_data_integrity
+|   |   |   |   |   |-- migration.sql
 |   |   |   |   |-- migration_lock.toml
 |   |   |   |-- schema
 |   |   |   |   |-- akun_pelanggan.prisma
@@ -70,15 +72,11 @@
 |   |   |-- app.ts
 |   |   |-- index.ts
 |   |   |-- seed.ts
-|   |-- uploads
-|   |   |-- 1773924836155-9qffdqbsukp.pdf
-|   |   |-- 1773932718950-85jmrhwn3dk.pdf
+|   |-- uploads/
 |   |-- .dockerignore
-|   |-- .env
 |   |-- .env.example
 |   |-- Dockerfile
 |   |-- nodemon.json
-|   |-- package-lock.json
 |   |-- package.json
 |   |-- prisma.config.ts
 |   |-- README.md
@@ -122,7 +120,6 @@
 |   |   |-- .dockerignore
 |   |   |-- API_REFERENCE.md
 |   |   |-- index.html
-|   |   |-- package-lock.json
 |   |   |-- package.json
 |   |   |-- postcss.config.cjs
 |   |   |-- tailwind.config.cjs
@@ -147,7 +144,6 @@
 |   |   |   |   |-- useAuth.js
 |   |   |   |   |-- useForm.js
 |   |   |   |-- pages
-|   |   |   |   |-- AdminDashboard.jsx
 |   |   |   |   |-- Auth.jsx
 |   |   |   |   |-- FloatingHistory.jsx
 |   |   |   |   |-- Kontak.jsx
@@ -162,78 +158,156 @@
 |   |   |   |-- main.jsx
 |   |   |-- .dockerignore
 |   |   |-- index.html
-|   |   |-- package-lock.json
+|   |   |-- package.json
 |   |   |-- postcss.config.cjs
 |   |   |-- README.md
 |   |   |-- tailwind.config.cjs
 |   |   |-- vite.config.mjs
-|   |-- .env
 |   |-- .env.example
-|   |-- package-lock.json
 |   |-- package.json
 |-- README.md
 ```
 
-## Nyalakan project manual
+## Prasyarat
 
-Sebelum memulai, pastikan MySQL sudah berjalan !
+Pastikan sudah terinstall:
+- [Node.js](https://nodejs.org/) v18+
+- [Laragon](https://laragon.org/) (untuk MySQL)
 
-### Run Backend
+---
 
-1. Siapkan konfigurasi backend di `backend/.env`, contoh bisa dicopy dari `backend/.env.example`
+## Setup Pertama Kali
 
-2. Masuk ke folder backend
+### 1. Clone Repository
+
+```sh
+git clone <repo-url>
+cd OlaATK
+```
+
+### 2. Setup Backend
+
 ```sh
 cd backend
 ```
 
-3. Install dependencies
+Copy file konfigurasi:
+
 ```sh
-npm install
+cp .env.example .env
 ```
 
-4. Generate struktur prisma
+Isi `.env`:
+
+```env
+PORT="8080"
+DATABASE_HOST="127.0.0.1"
+DATABASE_PORT="3306"
+DATABASE_USER="root"
+DATABASE_PASSWORD=""
+DATABASE_NAME="ola_db"
+DATABASE_URL="mysql://root:@127.0.0.1:3306/ola_db"
+ADMIN_USERNAME="isi_email_admin"
+ADMIN_PASSWORD="isi_password_admin"
+JWT_SECRET="generate_dengan_perintah_di_bawah"
+```
+
+Generate `JWT_SECRET`:
+
 ```sh
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+Copy output perintah tersebut dan paste sebagai nilai `JWT_SECRET` di `.env`.
+
+Install dependencies dan generate Prisma client:
+
+```sh
+npm install
 npx prisma generate
 ```
 
-5. (Pertama kali saja) Reset database agar tidak ada data tersisa
+### 3. Setup Frontend
+
 ```sh
-npm run db:reset
+cd ../frontend
 ```
 
-6. (Pertama kali saja) Seed database dengan data default
+Copy file konfigurasi:
+
 ```sh
-npm run seed
+cp .env.example .env
 ```
 
-7. Start backend server
-```sh
-npm run start:dev
+Isi `.env`:
+
+```env
+VITE_API_URL=http://127.0.0.1:8080
 ```
 
-### Run Frontend
+Install dependencies (sekali untuk semua app):
 
-1. Masuk ke folder frontend
-```sh
-cd frontend/
-```
-
-2. Siapkan konfigurasi frontend di `frontend/.env`, contoh bisa dicopy dari `frontend/.env.example`
-
-3. Install dependencies (sekali untuk semua app)
 ```sh
 npm install
 ```
 
-4. Jalankan semua frontend sekaligus
+---
+
+## Setup Database
+
+Pastikan **Laragon sudah berjalan** dan MySQL aktif.
+
+**Jika database BELUM ADA / mau reset bersih (fresh setup):**
+
 ```sh
+cd backend
+npm run db:reset
+npm run seed
+```
+
+**Jika database SUDAH ADA dan mau ikut skema terbaru:**
+
+> ⚠️ Lakukan ini jika sudah pernah setup sebelumnya dan ada perubahan skema baru.
+
+```sh
+cd backend
+npx prisma migrate dev
+npx prisma generate
+```
+
+---
+
+## Menjalankan Project
+
+### Jalankan Backend
+
+```sh
+cd backend
+npm run start:dev
+```
+
+Backend berjalan di: `http://127.0.0.1:8080`
+
+### Jalankan Frontend
+
+```sh
+cd frontend
 npm run dev:all
 ```
 
-Atau jalankan secara terpisah:
+Atau jalankan terpisah:
+
 ```sh
-npm run dev:user   # user app → http://localhost:5173
-npm run dev:admin  # admin app → http://localhost:5173/admin
+npm run dev:user   # http://localhost:5173
+npm run dev:admin  # http://localhost:5173/admin
 ```
+
+---
+
+## Kredensial Default
+
+| Role | Username/Email | Password |
+| :--- | :--- | :--- |
+| Admin | sesuai `.env` `ADMIN_USERNAME` | sesuai `.env` `ADMIN_PASSWORD` |
+| User | daftar via halaman `/auth` | — |
 ```
