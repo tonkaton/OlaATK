@@ -7,79 +7,56 @@ Sebelum memulai, pastikan MySQL sudah berjalan !
 1. Siapkan konfigurasi backend di `backend/.env`, contoh bisa dicopy dari `backend/.env.example`
 
 2. Masuk ke folder backend
-    ```sh
+```sh
     cd backend
-    ```
+```
 
 3. Install dependencies
-    ```sh
+```sh
     npm install
-    ```
+```
 
 4. Generate struktur prisma
-    ```sh
+```sh
     npx prisma generate
-    ```
+```
 
 5. (Pertama kali saja) Reset database agar tidak ada data tersisa
-    ```sh
+```sh
     npm run db:reset
-    ```
+```
 
 6. (Pertama kali saja) Seed database dengan data default
-    ```sh
+```sh
     npm run seed
-    ```
+```
 
 7. Start backend server
-    ```sh
+```sh
     npm run start:dev
-    ```
+```
 
-### Run frontend user
+### Run Frontend
 
 1. Masuk ke folder frontend
-    ```sh
+```sh
     cd frontend/
-    ```
+```
 
 2. Siapkan konfigurasi frontend di `frontend/.env`, contoh bisa dicopy dari `frontend/.example.env`
 
-3. Masuk ke folder user
-    ```sh
-    cd user/
-    ```
-
-4. Install dependencies
-    ```sh
+3. Install dependencies (sekali untuk semua app)
+```sh
     npm install
-    ```
+```
 
-5. Start frontend server
-    ```sh
-    npx dotenv -e ../.env -- npm run dev
-    ```
+4. Jalankan semua frontend sekaligus
+```sh
+    npm run dev:all
+```
 
-### Run frontend admin
-
-1. Masuk ke folder frontend
-    ```sh
-    cd frontend/
-    ```
-
-2. Siapkan konfigurasi frontend di `frontend/.env`, contoh bisa dicopy dari `frontend/.example.env`
-
-3. Masuk ke folder admin
-    ```sh
-    cd admin/
-    ```
-
-4. Install dependencies
-    ```sh
-    npm install
-    ```
-
-5. Start frontend server
-    ```sh
-    npx dotenv -e ../.env -- npm run dev
-    ```
+    Atau jalankan secara terpisah:
+```sh
+    npm run dev:user   # user app → http://localhost:5173
+    npm run dev:admin  # admin app → http://localhost:5173/admin
+```

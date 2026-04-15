@@ -15,7 +15,6 @@ const konfigurasiRoutes: RouteDefinitions = {
 					}
 				});
 
-				// Transform to simple key-value object
 				const configObject: Record<string, string> = {};
 				configs.forEach(config => {
 					configObject[config.kunci] = config.nilai;
