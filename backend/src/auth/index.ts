@@ -1,153 +1,149 @@
 import type { ErrorResponse, AuthStatus } from "../types/index.js";
 import { getPrismaClient } from "../prisma/index.js";
 import type { Request } from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
-// Hardcoded admin credentials
-const ADMIN_USERNAME = process.env['ADMIN_USERNAME'] || 'bidi@admin.com';
-const ADMIN_PASSWORD = process.env['ADMIN_PASSWORD'] || 'admin321bidi';
-
-/**
- * Simple session store for authentication tokens
- * In production, use Redis or a proper session store
- */
-const sessionStore = new Map<string, AuthStatus>();
+const getJwtSecret = (): string => {
+  const secret = process.env['JWT_SECRET'];
+  if (!secret) throw new Error('JWT_SECRET not set in environment');
+  return secret;
+};
 
 /**
- * Generate a simple session token
+ * Hash password dengan bcrypt
  */
-export function generateSessionToken(): string {
-	return Buffer.from(`${Date.now()}-${Math.random()}`).toString('base64');
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
 }
 
 /**
- * Authenticate admin with hardcoded credentials
+ * Generate JWT token
+ */
+function generateToken(payload: AuthStatus, expiresIn: string): string {
+  return jwt.sign(payload, getJwtSecret(), { expiresIn } as jwt.SignOptions);
+}
+
+/**
+ * Verify JWT token
+ */
+function verifyToken(token: string): AuthStatus | null {
+  try {
+    const decoded = jwt.verify(token, getJwtSecret());
+    return decoded as AuthStatus;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Authenticate admin
  */
 export async function authenticateAdmin(username: string, password: string): Promise<string | null> {
-	if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-		const token = generateSessionToken();
-		sessionStore.set(token, {
-			isAuthenticated: true,
-			userType: 'admin',
-		});
-		return token;
-	}
-	return null;
+  const ADMIN_USERNAME = process.env['ADMIN_USERNAME'];
+  const ADMIN_PASSWORD = process.env['ADMIN_PASSWORD'];
+
+  if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+    console.error('FATAL: ADMIN_USERNAME or ADMIN_PASSWORD not set in environment');
+    return null;
+  }
+
+  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) return null;
+
+  return generateToken(
+    { isAuthenticated: true, userType: 'admin' },
+    '24h'
+  );
 }
 
 /**
- * Authenticate user with database credentials
- * Supports login with either email or phone number
+ * Authenticate user dengan bcrypt
  */
-export async function authenticateUser(emailOrPhone: string, password: string): Promise<{ token: string; userId: number } | null> {
-	try {
-		const prisma = await getPrismaClient();
-		
-		// Try to find by email or phone number
-		const akunPelanggan = await prisma.akunPelanggan.findFirst({
-			where: {
-				OR: [
-					{ email: emailOrPhone },
-					{ nomor_telepon: emailOrPhone }
-				]
-			},
-		});
+export async function authenticateUser(
+  emailOrPhone: string,
+  password: string
+): Promise<{ token: string; userId: number } | null> {
+  try {
+    const prisma = await getPrismaClient();
 
-		// In production, use bcrypt to compare hashed passwords
-		// For now, comparing directly (assuming password is stored as hash)
-		if (akunPelanggan && akunPelanggan.hashed_password === password) {
-			const token = generateSessionToken();
-			sessionStore.set(token, {
-				isAuthenticated: true,
-				userType: 'user',
-				userId: akunPelanggan.id_pelanggan,
-			});
-			return { token, userId: akunPelanggan.id_pelanggan };
-		}
-		return null;
-	} catch (error) {
-		console.error('Error authenticating user:', error);
-		return null;
-	}
+    const akunPelanggan = await prisma.akunPelanggan.findFirst({
+      where: {
+        OR: [
+          { email: emailOrPhone },
+          { nomor_telepon: emailOrPhone }
+        ]
+      },
+    });
+
+    if (!akunPelanggan) return null;
+
+    const isPasswordValid = await bcrypt.compare(password, akunPelanggan.hashed_password);
+    if (!isPasswordValid) return null;
+
+    const token = generateToken(
+      { isAuthenticated: true, userType: 'user', userId: akunPelanggan.id_pelanggan },
+      '7d'
+    );
+
+    return { token, userId: akunPelanggan.id_pelanggan };
+  } catch (error) {
+    console.error('Error authenticating user:', error);
+    return null;
+  }
 }
 
 /**
- * Get auth status from token
- */
-export function getAuthStatus(token: string): AuthStatus | null {
-	return sessionStore.get(token) || null;
-}
-
-/**
- * Logout and remove session
- */
-export function logout(token: string): void {
-	sessionStore.delete(token);
-}
-
-/**
- * Auth middleware - attaches authStatus to request
+ * Auth middleware
  */
 export function authMiddleware(req: Request): void {
-	const token = req.headers.authorization?.replace('Bearer ', '');
-	
-	if (!token) {
-		req.authStatus = {
-			isAuthenticated: false,
-		};
-		return;
-	}
+  const token = req.headers.authorization?.replace('Bearer ', '');
 
-	const authStatus = getAuthStatus(token);
-	if (authStatus) {
-		req.authStatus = authStatus;
-		return;
-	}
+  if (!token) {
+    req.authStatus = { isAuthenticated: false };
+    return;
+  }
+
+  const authStatus = verifyToken(token);
+  if (authStatus) {
+    req.authStatus = authStatus;
+    return;
+  }
+
+  req.authStatus = { isAuthenticated: false };
 }
 
 /**
  * Require authentication
  */
 export function requireAuth(req: Request): ErrorResponse | null {
-	if (!req.authStatus?.isAuthenticated) {
-		return {
-			success: false,
-			statusCode: 401,
-			message: 'Authentication required',
-		};
-	}
-	return null;
+  if (!req.authStatus?.isAuthenticated) {
+    return { success: false, statusCode: 401, message: 'Authentication required' };
+  }
+  return null;
 }
 
 /**
  * Require admin authentication
  */
 export function requireAdmin(req: Request): ErrorResponse | null {
-	const authError = requireAuth(req);
-	if (authError) return authError;
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
-	if (req.authStatus?.userType !== 'admin') {
-		return {
-			success: false,
-			statusCode: 403,
-			message: 'Anda tidak memiliki akses admin',
-		};
-	}
-	return null;
+  if (req.authStatus?.userType !== 'admin') {
+    return { success: false, statusCode: 403, message: 'Anda tidak memiliki akses admin' };
+  }
+  return null;
 }
 
 /**
  * Require user authentication
  */
 export function requireUser(req: Request): ErrorResponse | null {
-	const authError = requireAuth(req);
-	if (authError) return authError;
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
-	if (req.authStatus?.userType !== 'user') {
-		return {
-			success: false,
-			statusCode: 403,
-			message: 'User access required',
-		};
-	}
-	return null;
+  if (req.authStatus?.userType !== 'user') {
+    return { success: false, statusCode: 403, message: 'User access required' };
+  }
+  return null;
 }

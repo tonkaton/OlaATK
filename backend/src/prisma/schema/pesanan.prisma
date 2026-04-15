@@ -1,3 +1,15 @@
+enum StatusPesanan {
+  MENUNGGU
+  DIPROSES
+  SELESAI
+  BATAL
+}
+
+enum ModePesanan {
+  ONLINE
+  OFFLINE
+}
+
 model Pesanan {
   id              Int             @id @default(autoincrement()) @db.UnsignedInt
   id_pelanggan    Int             @db.UnsignedInt
@@ -9,8 +21,8 @@ model Pesanan {
   catatan_pesanan String?
   nilai_pesanan   Float
 
-  status          String          @default("MENUNGGU") // MENUNGGU, DIPROSES, SELESAI, BATAL
-  mode_pesanan    String          @default("ONLINE")   // ONLINE, OFFLINE
+  status          StatusPesanan   @default(MENUNGGU)
+  mode_pesanan    ModePesanan     @default(ONLINE)
 
   /* Foreign Key Relations */
   pelanggan       Pelanggan       @relation(fields: [id_pelanggan], references: [id])

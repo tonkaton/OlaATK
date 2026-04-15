@@ -1,11 +1,22 @@
-import { IsString, IsNotEmpty, IsInt, IsNumber, IsOptional, IsArray, ValidateNested, Min, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, IsNumber, IsOptional, IsArray, ValidateNested, Min, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// [BARU] 1. DTO untuk item barang (biar bisa beli cetak + jilid sekaligus)
+export enum StatusPesanan {
+  MENUNGGU = 'MENUNGGU',
+  DIPROSES = 'DIPROSES',
+  SELESAI = 'SELESAI',
+  BATAL = 'BATAL',
+}
+
+export enum ModePesanan {
+  ONLINE = 'ONLINE',
+  OFFLINE = 'OFFLINE',
+}
+
 export class ItemPesananDto {
   @IsString()
   @IsNotEmpty()
-  nama_barang!: string; // Pake tanda seru (!) biar TypeScript ga rewel
+  nama_barang!: string;
 
   @IsNumber()
   @Min(0)
@@ -16,7 +27,6 @@ export class ItemPesananDto {
   jumlah!: number;
 }
 
-// [UPGRADE] 2. DTO Create sekarang support Mode & Items
 export class CreatePesananDto {
   @IsInt()
   @IsNotEmpty()
@@ -26,11 +36,9 @@ export class CreatePesananDto {
   @IsNotEmpty()
   jenis_layanan!: string;
 
-  // Baru: Mode Online/Offline
-  @IsString()
+  @IsEnum(ModePesanan)
   @IsOptional()
-  @IsIn(['ONLINE', 'OFFLINE'])
-  mode_pesanan?: string; 
+  mode_pesanan?: ModePesanan;
 
   @IsString()
   @IsOptional()
@@ -44,7 +52,6 @@ export class CreatePesananDto {
   @IsNotEmpty()
   nilai_pesanan!: number;
 
-  // Baru: Array Item (Cetak, Jilid, dll)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ItemPesananDto)
@@ -52,10 +59,9 @@ export class CreatePesananDto {
   items?: ItemPesananDto[];
 }
 
-// [FIX] 3. DTO Update yang bener (semua Optional)
 export class UpdatePesananDto {
   @IsString()
-  @IsOptional() // Sebelumnya IsNotEmpty tapi propertinya optional (aneh kan?), gua benerin jadi IsOptional
+  @IsOptional()
   jenis_layanan?: string;
 
   @IsString()
@@ -71,10 +77,8 @@ export class UpdatePesananDto {
   nilai_pesanan?: number;
 }
 
-// [BARU] 4. DTO Khusus buat ganti Status doang
 export class UpdateStatusPesananDto {
-  @IsString()
+  @IsEnum(StatusPesanan)
   @IsNotEmpty()
-  @IsIn(['MENUNGGU', 'DIPROSES', 'SELESAI', 'BATAL'])
-  status!: string;
+  status!: StatusPesanan;
 }

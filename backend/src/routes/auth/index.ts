@@ -1,5 +1,5 @@
 import type { RouteDefinitions } from "../../types/index.js";
-import { authenticateAdmin, authenticateUser, logout } from "../../auth/index.js";
+import { authenticateAdmin, authenticateUser } from "../../auth/index.js";
 import { validateDto } from "../../utils/validation.js";
 import { LoginDto } from "./dto/login.dto.js";
 
@@ -54,7 +54,7 @@ const authRoutes: RouteDefinitions = {
 		post: (req) => {
 			const token = req.headers.authorization?.replace('Bearer ', '');
 			if (token) {
-				logout(token);
+				// Implement logout logic if needed
 			}
 
 			return {

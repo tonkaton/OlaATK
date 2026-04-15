@@ -18,7 +18,7 @@ const statsRoutes: RouteDefinitions = {
 				const endOfDay = new Date();
 				endOfDay.setHours(23, 59, 59, 999);
 
-				// Count orders today
+				// Count orders today (All status - raw traffic)
 				const ordersToday = await prisma.pesanan.count({
 					where: {
 						created_at: {
@@ -31,8 +31,9 @@ const statsRoutes: RouteDefinitions = {
 				// Count total customers
 				const totalCustomers = await prisma.pelanggan.count();
 
-				// Calculate total revenue
+				// Calculate total revenue (HANYA YANG SELESAI)
 				const revenueResult = await prisma.pesanan.aggregate({
+					where: { status: 'SELESAI' },
 					_sum: {
 						nilai_pesanan: true,
 					},
@@ -46,7 +47,7 @@ const statsRoutes: RouteDefinitions = {
 				// Count total orders (all time)
 				const totalOrders = await prisma.pesanan.count();
 
-				// Get weekly sales data (last 7 days)
+				// Get weekly sales data (last 7 days - HANYA YANG SELESAI)
 				const weeklySales = [];
 				const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 				const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -65,6 +66,7 @@ const statsRoutes: RouteDefinitions = {
 								gte: date,
 								lt: nextDate,
 							},
+							status: 'SELESAI', // Filter uang riil
 						},
 						_sum: {
 							nilai_pesanan: true,
