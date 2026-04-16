@@ -13,13 +13,37 @@ const StatusBadge = ({ status }) => {
   const colors = {
     'MENUNGGU': 'bg-yellow-100 text-yellow-800 border-yellow-200',
     'DIPROSES': 'bg-blue-100 text-blue-800 border-blue-200',
-    'SELESAI': 'bg-green-100 text-green-800 border-green-200',
-    'BATAL': 'bg-red-100 text-red-800 border-red-200',
+    'SELESAI':  'bg-green-100 text-green-800 border-green-200',
+    'BATAL':    'bg-red-100 text-red-800 border-red-200',
   }
 
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-bold border ${colors[status] || 'bg-gray-100'}`}>
       {status}
+    </span>
+  )
+}
+
+// Helper Badge Payment
+const PaymentBadge = ({ status }) => {
+  if (!status) return null
+  const colors = {
+    'pending':    'bg-yellow-50 text-yellow-700 border-yellow-200',
+    'settlement': 'bg-green-50 text-green-700 border-green-200',
+    'cancel':     'bg-red-50 text-red-700 border-red-200',
+    'deny':       'bg-red-50 text-red-700 border-red-200',
+    'expire':     'bg-gray-100 text-gray-600 border-gray-200',
+  }
+  const labels = {
+    'pending':    '⏳ Pending',
+    'settlement': '✅ Lunas',
+    'cancel':     '❌ Cancel',
+    'deny':       '❌ Ditolak',
+    'expire':     '⌛ Expire',
+  }
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-bold border ${colors[status] || 'bg-gray-100'}`}>
+      {labels[status] || status}
     </span>
   )
 }
@@ -60,6 +84,13 @@ export default function Pesanan({ dark }) {
         fetchServices()
         fetchPrices() 
     }
+
+    // Polling setiap 30 detik di tab list
+    let interval
+    if (activeTab === 'list') {
+      interval = setInterval(fetchOrders, 30000)
+    }
+    return () => clearInterval(interval)
   }, [page, search, activeTab])
 
   const fetchOrders = async () => {
@@ -211,8 +242,8 @@ export default function Pesanan({ dark }) {
           ) : (
             <>
               <GlassTable 
-                headers={["ID", "Pelanggan", "Layanan", "File", "Total Harga", "Status", "Aksi"]} 
-                columnWidths={["50px", "220px", "150px", "80px", "150px", "120px", "150px"]}
+                headers={["ID", "Pelanggan", "Layanan", "File", "Total Harga", "Pembayaran", "Status", "Aksi"]} 
+                columnWidths={["50px", "200px", "130px", "80px", "130px", "110px", "110px", "150px"]}
                 dark={dark}
               >
                 {orders.map(o => (
@@ -243,6 +274,14 @@ export default function Pesanan({ dark }) {
                          <div className="font-bold text-gray-700">Rp {o.nilai_pesanan?.toLocaleString('id-ID')}</div>
                       </td>
 
+                      {/* KOLOM PEMBAYARAN BARU */}
+                      <td>
+                        {o.mode_pesanan === 'ONLINE'
+                          ? <PaymentBadge status={o.payment_status} />
+                          : <span className="text-xs opacity-40">-</span>
+                        }
+                      </td>
+
                       <td><StatusBadge status={o.status}/></td>
                       <td>
                         <div className="flex items-center gap-2">
@@ -263,7 +302,8 @@ export default function Pesanan({ dark }) {
                     </tr>
                     {expandedOrderId === o.id && (
                       <tr className={`${dark ? 'bg-black/20' : 'bg-gray-50'}`}>
-                        <td colSpan="7" className="p-4 pl-12">
+                        {/* colSpan diupdate jadi 8 karena nambah kolom Pembayaran */}
+                        <td colSpan="8" className="p-4 pl-12">
                            <div className={`p-4 rounded-lg border text-sm max-w-2xl ${dark ? 'border-white/10 bg-slate-800' : 'border-gray-200 bg-white'}`}>
                               <h4 className="font-bold text-xs uppercase opacity-50 mb-2">Rincian Barang:</h4>
                               <ul className="space-y-1 mb-3">

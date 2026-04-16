@@ -167,4 +167,12 @@ export const configAPI = {
   },
 }
 
+// Payment API
+export const paymentAPI = {
+  createToken: async (orderData) => {
+    const response = await api.post('/payment/create-token', orderData)
+    return response.data
+  },
+}
+
 export default api

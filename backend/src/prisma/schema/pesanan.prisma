@@ -11,22 +11,26 @@ enum ModePesanan {
 }
 
 model Pesanan {
-  id              Int             @id @default(autoincrement()) @db.UnsignedInt
-  id_pelanggan    Int             @db.UnsignedInt
-  created_at      DateTime        @default(now())
-  updated_at      DateTime        @updatedAt
+  id                Int             @id @default(autoincrement()) @db.UnsignedInt
+  id_pelanggan      Int             @db.UnsignedInt
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
 
-  jenis_layanan   String
-  nama_file       String?
-  catatan_pesanan String?
-  nilai_pesanan   Float
+  jenis_layanan     String
+  nama_file         String?
+  catatan_pesanan   String?
+  nilai_pesanan     Float
 
-  status          StatusPesanan   @default(MENUNGGU)
-  mode_pesanan    ModePesanan     @default(ONLINE)
+  status            StatusPesanan   @default(MENUNGGU)
+  mode_pesanan      ModePesanan     @default(ONLINE)
+
+  midtrans_order_id String?         @unique
+  payment_status    String?
+  snap_token        String?
 
   /* Foreign Key Relations */
-  pelanggan       Pelanggan       @relation(fields: [id_pelanggan], references: [id])
-  barangTerbeli   BarangTerbeli[]
+  pelanggan         Pelanggan       @relation(fields: [id_pelanggan], references: [id])
+  barangTerbeli     BarangTerbeli[]
 
   @@map("pesanan")
 }
