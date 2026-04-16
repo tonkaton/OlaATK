@@ -14,6 +14,8 @@
 |   |   |   |   |   |-- migration.sql
 |   |   |   |   |-- 20260416000000_phase2_data_integrity
 |   |   |   |   |   |-- migration.sql
+|   |   |   |   |-- 20260416092600_add_midtrans_fields
+|   |   |   |   |   |-- migration.sql
 |   |   |   |   |-- migration_lock.toml
 |   |   |   |-- schema
 |   |   |   |   |-- akun_pelanggan.prisma
@@ -43,6 +45,8 @@
 |   |   |   |   |   |-- data-layanan.dto.ts
 |   |   |   |   |-- index.ts
 |   |   |   |-- konfigurasi
+|   |   |   |   |-- index.ts
+|   |   |   |-- payment
 |   |   |   |   |-- index.ts
 |   |   |   |-- pelanggan
 |   |   |   |   |-- dto
@@ -210,6 +214,9 @@ DATABASE_URL="mysql://root:@127.0.0.1:3306/ola_db"
 ADMIN_USERNAME="isi_email_admin"
 ADMIN_PASSWORD="isi_password_admin"
 JWT_SECRET="generate_dengan_perintah_di_bawah"
+MIDTRANS_SERVER_KEY="SB-Mid-server-xxxxxxxx"
+MIDTRANS_CLIENT_KEY="SB-Mid-client-xxxxxxxx"
+MIDTRANS_IS_PRODUCTION="false"
 ```
 
 Generate `JWT_SECRET`:
@@ -243,6 +250,7 @@ Isi `.env`:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8080
+VITE_MIDTRANS_CLIENT_KEY=SB-Mid-client-xxxxxxxx
 ```
 
 Install dependencies (sekali untuk semua app):
@@ -310,4 +318,49 @@ npm run dev:admin  # http://localhost:5173/admin
 | :--- | :--- | :--- |
 | Admin | sesuai `.env` `ADMIN_USERNAME` | sesuai `.env` `ADMIN_PASSWORD` |
 | User | daftar via halaman `/auth` | — |
+
+---
+
+## Testing Pembayaran (Sandbox)
+
+Untuk testing integrasi Midtrans di local, backend perlu diexpose ke internet menggunakan ngrok.
+
+### Setup ngrok
+
+Install ngrok:
+
+```sh
+winget install Ngrok.Ngrok
+```
+
+Daftar di https://ngrok.com, lalu setup authtoken:
+
+```sh
+ngrok config add-authtoken <token_dari_dashboard_ngrok>
+```
+
+Jalankan ngrok di terminal terpisah (pastikan backend sudah jalan):
+
+```sh
+ngrok http 8080
+```
+
+Copy URL yang muncul (contoh: `https://xxxx.ngrok-free.dev`), lalu set di Midtrans Sandbox Dashboard:
+
+**Settings → Configuration → URL notifikasi pembayaran:**
+
+```
+https://xxxx.ngrok-free.dev/payment/notification
+```
+
+> ⚠️ URL ngrok berubah setiap kali ngrok di-restart. Update URL notifikasi di Midtrans dashboard setiap kali ngrok dijalankan ulang.
+
+### Kartu Test Sandbox
+
+| Field | Value |
+| :--- | :--- |
+| Nomor kartu | 4811 1111 1111 1114 |
+| Expiry | 01/25 |
+| CVV | 123 |
+| OTP | 112233 |
 ```

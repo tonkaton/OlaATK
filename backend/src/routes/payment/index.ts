@@ -85,13 +85,8 @@ const paymentRoutes: RouteDefinitions = {
             first_name: nama_lengkap,
             phone: nomor_telepon,
           },
-          item_details: items?.map((item: any) => ({
-            id: item.nama_barang.replace(/\s/g, '-').toLowerCase(),
-            price: Math.round(item.harga_satuan),
-            quantity: item.jumlah,
-            name: item.nama_barang,
-          })) ?? [{
-            id: 'layanan',
+          item_details: [{
+            id: 'pesanan',
             price: Math.round(nilai_pesanan),
             quantity: 1,
             name: jenis_layanan,
@@ -126,18 +121,28 @@ const paymentRoutes: RouteDefinitions = {
   "/payment/notification": {
     post: async (req) => {
       try {
-        // Gunakan CoreApi untuk validasi notifikasi
         const apiClient = new midtransClient.CoreApi({
           isProduction: process.env['MIDTRANS_IS_PRODUCTION'] === 'true',
           serverKey: process.env['MIDTRANS_SERVER_KEY'] || '',
           clientKey: process.env['MIDTRANS_CLIENT_KEY'] || '',
         });
 
-        // Verifikasi notifikasi dari Midtrans
-        const statusResponse = await (apiClient as any).transaction.notification(req.body);
+        let statusResponse: any;
+        try {
+          // Verifikasi notifikasi dari Midtrans
+          statusResponse = await (apiClient as any).transaction.notification(req.body);
+        } catch (midtransError: any) {
+          // Midtrans test ping pakai dummy order ID - return 200 biar dashboard happy
+          if (midtransError?.ApiResponse?.status_code === '404') {
+            return { success: true, data: { message: "Test notification received" } };
+          }
+          throw midtransError; // Lempar error lain selain 404 dummy test
+        }
+
         const orderId = statusResponse.order_id;
         const transactionStatus = statusResponse.transaction_status;
         const fraudStatus = statusResponse.fraud_status;
+        
         const prisma = await getPrismaClient();
         const pesanan = await prisma.pesanan.findFirst({
           where: { midtrans_order_id: orderId },
