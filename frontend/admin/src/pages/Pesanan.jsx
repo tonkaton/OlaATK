@@ -128,14 +128,19 @@ export default function Pesanan({ dark }) {
   // SMART CALCULATOR LOGIC
   const hitungTotal = () => {
     if (!priceList || !offlineForm.service) return 0;
-    
-    let totalPerBundel = 0;
-    const copies = parseInt(offlineDetails.copies) || 1;
-    const isCetak = offlineForm.service.nama.toLowerCase().includes('cetak') || offlineForm.service.nama.toLowerCase().includes('print');
 
-    // 1. Hitung Biaya Kertas
+    const copies = parseInt(offlineDetails.copies) || 1;
+    const nama = offlineForm.service.nama.toLowerCase();
+    const isCetak = nama.includes('cetak') || nama.includes('print');
+    const isFotokopi = nama.includes('fotokopi') || nama.includes('fotocopy');
+    const isLaminating = nama.includes('laminating');
+    const isScan = nama.includes('scan');
+    const isJilid = nama.includes('jilid') && !isCetak;
+
+    let totalPerBundel = 0;
+    const kertas = offlineDetails.paperSize.toLowerCase();
+
     if (isCetak) {
-      const kertas = offlineDetails.paperSize.toLowerCase(); 
       const hargaBw = parseInt(priceList[`harga_cetak_${kertas}_bw`]) || 0;
       const hargaWarna = parseInt(priceList[`harga_cetak_${kertas}_color`]) || 0;
 
@@ -147,13 +152,23 @@ export default function Pesanan({ dark }) {
         totalPerBundel += (parseInt(offlineDetails.bwPages) || 0) * hargaBw;
         totalPerBundel += (parseInt(offlineDetails.colorPages) || 0) * hargaWarna;
       }
-    }
 
-    // 2. Hitung Biaya Jilid
-    if (offlineDetails.bindingType !== 'Tidak Ada') {
-      const type = offlineDetails.bindingType.toLowerCase().split(' ')[0]; 
-      const hargaJilid = parseInt(priceList[`harga_jilid_${type}`]) || 0;
-      totalPerBundel += hargaJilid;
+      if (offlineDetails.bindingType !== 'Tidak Ada') {
+        const type = offlineDetails.bindingType.toLowerCase().split(' ')[0];
+        totalPerBundel += parseInt(priceList[`harga_jilid_${type}`]) || 0;
+      }
+    } else if (isFotokopi) {
+      const hargaFotokopi = parseInt(priceList[`harga_fotokopi_${kertas}`]) || 0;
+      totalPerBundel = (parseInt(offlineDetails.totalPages) || 0) * hargaFotokopi;
+    } else if (isLaminating) {
+      const hargaLaminating = parseInt(priceList[`harga_laminating_${kertas}`]) || 0;
+      totalPerBundel = (parseInt(offlineDetails.totalPages) || 0) * hargaLaminating;
+    } else if (isScan) {
+      const hargaScan = parseInt(priceList['harga_scan']) || 0;
+      totalPerBundel = (parseInt(offlineDetails.totalPages) || 0) * hargaScan;
+    } else if (isJilid) {
+      const type = offlineDetails.bindingType.toLowerCase().split(' ')[0];
+      totalPerBundel = parseInt(priceList[`harga_jilid_${type}`]) || 0;
     }
 
     return totalPerBundel * copies;
@@ -223,6 +238,12 @@ export default function Pesanan({ dark }) {
     finally { setSubmitLoading(false) }
   }
 
+  const isCetakService = offlineForm.service?.nama.toLowerCase().includes('cetak') || offlineForm.service?.nama.toLowerCase().includes('print')
+  const isFotokopiService = offlineForm.service?.nama.toLowerCase().includes('fotokopi') || offlineForm.service?.nama.toLowerCase().includes('fotocopy')
+  const isLaminatingService = offlineForm.service?.nama.toLowerCase().includes('laminating')
+  const isScanService = offlineForm.service?.nama.toLowerCase().includes('scan')
+  const isJilidService = offlineForm.service?.nama.toLowerCase().includes('jilid') && !isCetakService
+
   return (
     <>
       <div className="flex gap-2 mb-6">
@@ -251,7 +272,6 @@ export default function Pesanan({ dark }) {
                     <tr className={`border-t ${dark ? 'border-white/10' : 'border-slate-100'} ${expandedOrderId === o.id ? (dark ? 'bg-white/5' : 'bg-blue-50/50') : ''}`}>
                       <td className="font-mono text-xs opacity-70">#{o.id}</td>
                       
-                      {/* UPDATE KOLOM PELANGGAN: Badge Mode dipindah ke sini */}
                       <td>
                         <div className="flex items-center gap-2 mb-0.5">
                            <div className="font-bold truncate max-w-[130px]">{o.pelanggan?.nama_lengkap}</div>
@@ -269,12 +289,10 @@ export default function Pesanan({ dark }) {
                         ) : <span className="text-xs opacity-40">-</span>}
                       </td>
                       
-                      {/* UPDATE KOLOM HARGA: Bersih cuma nampilin angka */}
                       <td>
                          <div className="font-bold text-gray-700">Rp {o.nilai_pesanan?.toLocaleString('id-ID')}</div>
                       </td>
 
-                      {/* KOLOM PEMBAYARAN BARU */}
                       <td>
                         {o.mode_pesanan === 'ONLINE'
                           ? <PaymentBadge status={o.payment_status} />
@@ -302,7 +320,6 @@ export default function Pesanan({ dark }) {
                     </tr>
                     {expandedOrderId === o.id && (
                       <tr className={`${dark ? 'bg-black/20' : 'bg-gray-50'}`}>
-                        {/* colSpan diupdate jadi 8 karena nambah kolom Pembayaran */}
                         <td colSpan="8" className="p-4 pl-12">
                            <div className={`p-4 rounded-lg border text-sm max-w-2xl ${dark ? 'border-white/10 bg-slate-800' : 'border-gray-200 bg-white'}`}>
                               <h4 className="font-bold text-xs uppercase opacity-50 mb-2">Rincian Barang:</h4>
@@ -367,83 +384,118 @@ export default function Pesanan({ dark }) {
                 </div>
 
                 {offlineForm.service && (
-                   <div className={`p-4 rounded-lg border ${dark ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
-                      <h4 className="text-sm font-bold mb-4 opacity-80 border-b pb-2">Detail {offlineForm.service.nama}</h4>
+                  <div className={`p-4 rounded-lg border ${dark ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+                    <h4 className="text-sm font-bold mb-4 opacity-80 border-b pb-2">Detail {offlineForm.service.nama}</h4>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         
-                         <div>
-                            <label className="text-xs font-bold text-olaTosca block mb-1">Jumlah Rangkap (Buku/Bundel)</label>
-                            <input type="number" min="1" value={offlineDetails.copies} onChange={e => setOfflineDetails({...offlineDetails, copies: e.target.value})} className={`w-full p-2 rounded border-2 border-olaTosca/30 focus:border-olaTosca ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
-                            <span className="text-[10px] opacity-60">*(Berapa banyak hasil akhir yang dibawa pulang)</span>
-                         </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                         {(offlineForm.service.nama.toLowerCase().includes('cetak') || offlineForm.service.nama.toLowerCase().includes('print')) && offlineDetails.colorMode !== 'Campur' && (
-                           <div>
-                              <label className="text-xs font-bold text-blue-500 block mb-1">Total Halaman per Buku</label>
-                              <input type="number" min="1" value={offlineDetails.totalPages} onChange={e => setOfflineDetails({...offlineDetails, totalPages: e.target.value})} className={`w-full p-2 rounded border-2 border-blue-500/30 focus:border-blue-500 ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
-                              <span className="text-[10px] opacity-60">*(Jumlah lembar dokumen yang di-print)</span>
-                           </div>
-                         )}
-
-                         {(offlineForm.service.nama.toLowerCase().includes('cetak') || offlineForm.service.nama.toLowerCase().includes('print')) && (
-                            <>
-                               <div>
-                                  <label className="text-xs opacity-60 block mb-1">Ukuran Kertas</label>
-                                  <select value={offlineDetails.paperSize} onChange={e => setOfflineDetails({...offlineDetails, paperSize: e.target.value})} className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
-                                    <option>A4</option><option>F4</option>
-                                  </select>
-                               </div>
-                               <div>
-                                  <label className="text-xs opacity-60 block mb-1">Warna</label>
-                                  <select value={offlineDetails.colorMode} onChange={e => setOfflineDetails({...offlineDetails, colorMode: e.target.value})} className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
-                                    <option>Hitam Putih</option><option>Berwarna</option><option value="Campur">Campur (Custom)</option>
-                                  </select>
-                               </div>
-                               <div className="md:col-span-2">
-                                  <label className="text-xs opacity-60 block mb-1">Jilid Sekalian?</label>
-                                  <select value={offlineDetails.bindingType} onChange={e => setOfflineDetails({...offlineDetails, bindingType: e.target.value})} className={`w-full md:w-1/2 p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
-                                    <option>Tidak Ada</option><option>Lakban Biasa</option><option>Softcover</option><option>Hardcover</option><option>Spiral</option>
-                                  </select>
-                               </div>
-                            </>
-                         )}
-
-                         {offlineForm.service.nama.toLowerCase().includes('jilid') && !offlineForm.service.nama.toLowerCase().includes('cetak') && (
-                            <div>
-                               <label className="text-xs opacity-60 block mb-1">Jenis Jilid</label>
-                               <select value={offlineDetails.bindingType} onChange={e => setOfflineDetails({...offlineDetails, bindingType: e.target.value})} className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
-                                 <option value="Lakban Biasa">Lakban Biasa</option><option value="Softcover">Softcover (Jilid Buku)</option><option value="Hardcover">Hardcover (Skripsi)</option><option value="Spiral">Jilid Spiral Kawat</option>
-                               </select>
-                            </div>
-                         )}
+                      {/* JUMLAH RANGKAP — semua layanan */}
+                      <div>
+                        <label className="text-xs font-bold text-olaTosca block mb-1">
+                          {isCetakService ? 'Jumlah Rangkap (Buku/Bundel)' : 'Jumlah'}
+                        </label>
+                        <input type="number" min="1" value={offlineDetails.copies}
+                          onChange={e => setOfflineDetails({...offlineDetails, copies: e.target.value})}
+                          className={`w-full p-2 rounded border-2 border-olaTosca/30 focus:border-olaTosca ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
                       </div>
 
-                      {(offlineForm.service.nama.toLowerCase().includes('cetak') || offlineForm.service.nama.toLowerCase().includes('print')) && offlineDetails.colorMode === 'Campur' && (
-                          <div className={`mt-4 p-3 rounded border border-dashed ${dark ? 'bg-white/5 border-white/20' : 'bg-orange-50 border-orange-200'}`}>
-                              <div className="flex items-center gap-2 mb-2 text-xs font-bold uppercase text-orange-600">
-                                  <Calculator size={14}/> Detail Halaman per 1 Buku
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                      <label className="text-xs opacity-60 block mb-1">Halaman Hitam Putih</label>
-                                      <input type="number" min="0" value={offlineDetails.bwPages} onChange={e => setOfflineDetails({...offlineDetails, bwPages: e.target.value})} className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
-                                  </div>
-                                  <div>
-                                      <label className="text-xs opacity-60 block mb-1">Halaman Berwarna</label>
-                                      <input type="number" min="0" value={offlineDetails.colorPages} onChange={e => setOfflineDetails({...offlineDetails, colorPages: e.target.value})} className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
-                                  </div>
-                              </div>
-                          </div>
+                      {/* TOTAL HALAMAN/LEMBAR — cetak, fotokopi, laminating, scan */}
+                      {(isCetakService || isFotokopiService || isLaminatingService || isScanService) && offlineDetails.colorMode !== 'Campur' && (
+                        <div>
+                          <label className="text-xs font-bold text-blue-500 block mb-1">
+                            {isCetakService ? 'Total Halaman per Buku' :
+                             isLaminatingService ? 'Jumlah Lembar Laminating' :
+                             isScanService ? 'Jumlah Halaman Scan' :
+                             'Jumlah Lembar Fotokopi'}
+                          </label>
+                          <input type="number" min="1" value={offlineDetails.totalPages}
+                            onChange={e => setOfflineDetails({...offlineDetails, totalPages: e.target.value})}
+                            className={`w-full p-2 rounded border-2 border-blue-500/30 focus:border-blue-500 ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
+                        </div>
                       )}
-                      
-                      {/* LIVE DISPLAY HARGA OTOMATIS */}
-                      <div className="mt-6 pt-4 border-t border-dashed flex justify-between items-center">
-                          <span className="text-sm font-bold opacity-60">Estimasi Total Harga:</span>
-                          <span className="text-2xl font-black text-olaTosca">Rp {hitungTotal().toLocaleString('id-ID')}</span>
-                      </div>
 
-                   </div>
+                      {/* UKURAN KERTAS — cetak, fotokopi, laminating */}
+                      {(isCetakService || isFotokopiService || isLaminatingService) && (
+                        <div>
+                          <label className="text-xs opacity-60 block mb-1">Ukuran Kertas</label>
+                          <select value={offlineDetails.paperSize}
+                            onChange={e => setOfflineDetails({...offlineDetails, paperSize: e.target.value})}
+                            className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
+                            <option>A4</option><option>F4</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {/* WARNA — cetak only */}
+                      {isCetakService && (
+                        <div>
+                          <label className="text-xs opacity-60 block mb-1">Warna</label>
+                          <select value={offlineDetails.colorMode}
+                            onChange={e => setOfflineDetails({...offlineDetails, colorMode: e.target.value})}
+                            className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
+                            <option>Hitam Putih</option><option>Berwarna</option><option value="Campur">Campur (Custom)</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {/* JILID — cetak only */}
+                      {isCetakService && (
+                        <div className="md:col-span-2">
+                          <label className="text-xs opacity-60 block mb-1">Jilid Sekalian?</label>
+                          <select value={offlineDetails.bindingType}
+                            onChange={e => setOfflineDetails({...offlineDetails, bindingType: e.target.value})}
+                            className={`w-full md:w-1/2 p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
+                            <option>Tidak Ada</option><option>Lakban Biasa</option><option>Softcover</option><option>Hardcover</option><option>Spiral</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {/* JENIS JILID — jilid standalone */}
+                      {isJilidService && (
+                        <div>
+                          <label className="text-xs opacity-60 block mb-1">Jenis Jilid</label>
+                          <select value={offlineDetails.bindingType}
+                            onChange={e => setOfflineDetails({...offlineDetails, bindingType: e.target.value})}
+                            className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}>
+                            <option value="Lakban Biasa">Lakban Biasa</option>
+                            <option value="Softcover">Softcover (Jilid Buku)</option>
+                            <option value="Hardcover">Hardcover (Skripsi)</option>
+                            <option value="Spiral">Jilid Spiral Kawat</option>
+                          </select>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* CAMPUR MODE — cetak only */}
+                    {isCetakService && offlineDetails.colorMode === 'Campur' && (
+                      <div className={`mt-4 p-3 rounded border border-dashed ${dark ? 'bg-white/5 border-white/20' : 'bg-orange-50 border-orange-200'}`}>
+                        <div className="flex items-center gap-2 mb-2 text-xs font-bold uppercase text-orange-600">
+                          <Calculator size={14}/> Detail Halaman per 1 Buku
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs opacity-60 block mb-1">Halaman Hitam Putih</label>
+                            <input type="number" min="0" value={offlineDetails.bwPages}
+                              onChange={e => setOfflineDetails({...offlineDetails, bwPages: e.target.value})}
+                              className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
+                          </div>
+                          <div>
+                            <label className="text-xs opacity-60 block mb-1">Halaman Berwarna</label>
+                            <input type="number" min="0" value={offlineDetails.colorPages}
+                              onChange={e => setOfflineDetails({...offlineDetails, colorPages: e.target.value})}
+                              className={`w-full p-2 rounded border ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LIVE HARGA */}
+                    <div className="mt-6 pt-4 border-t border-dashed flex justify-between items-center">
+                      <span className="text-sm font-bold opacity-60">Estimasi Total Harga:</span>
+                      <span className="text-2xl font-black text-olaTosca">Rp {hitungTotal().toLocaleString('id-ID')}</span>
+                    </div>
+                  </div>
                 )}
 
                 <div>

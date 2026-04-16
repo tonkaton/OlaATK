@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Moon, Sun, ChevronDown, Menu } from 'lucide-react'
+import { APP_CONFIG } from '../config/constants'
 
 export default function Topbar({ dark, setDark, profileOpen, setProfileOpen, profileRef, onMenuClick }) {
   return (
@@ -42,9 +43,9 @@ export default function Topbar({ dark, setDark, profileOpen, setProfileOpen, pro
                 <div className={`${dark ? 'border-white/10' : 'border-slate-200'} border-t my-1`} />
                 <button 
                   onClick={() => {
-                    localStorage.removeItem('ola_auth_token')
-                    localStorage.removeItem('ola_user_data')
-                    window.location.href = '/'
+                    localStorage.removeItem(APP_CONFIG.LOCAL_STORAGE_KEYS.AUTH_TOKEN)
+                    localStorage.removeItem(APP_CONFIG.LOCAL_STORAGE_KEYS.USER_DATA)
+                    window.location.href = '/admin/login'
                   }} 
                   className="w-full text-left px-4 py-2 text-red-500 hover:bg-red-500/10 transition"
                 >

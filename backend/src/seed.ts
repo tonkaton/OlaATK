@@ -136,6 +136,49 @@ async function seed() {
         tipe: "number",
         grup: "harga",
         urutan: 14
+      },
+      // Fotokopi
+      {
+        kunci: "harga_fotokopi_a4",
+        nilai: "300",
+        deskripsi: "Harga Fotokopi A4 Hitam Putih (per lembar)",
+        tipe: "number",
+        grup: "harga",
+        urutan: 15
+      },
+      {
+        kunci: "harga_fotokopi_f4",
+        nilai: "500",
+        deskripsi: "Harga Fotokopi F4 Hitam Putih (per lembar)",
+        tipe: "number",
+        grup: "harga",
+        urutan: 16
+      },
+      // Laminating
+      {
+        kunci: "harga_laminating_a4",
+        nilai: "5000",
+        deskripsi: "Harga Laminating A4 (per lembar)",
+        tipe: "number",
+        grup: "harga",
+        urutan: 17
+      },
+      {
+        kunci: "harga_laminating_f4",
+        nilai: "5000",
+        deskripsi: "Harga Laminating F4 (per lembar)",
+        tipe: "number",
+        grup: "harga",
+        urutan: 18
+      },
+      // Scan
+      {
+        kunci: "harga_scan",
+        nilai: "1500",
+        deskripsi: "Harga Scan (per halaman)",
+        tipe: "number",
+        grup: "harga",
+        urutan: 19
       }
     ]
   });
