@@ -1,121 +1,114 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Home, BarChart2, ShoppingCart, ListChecks, Users, Settings, UserCog, X } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Users, Settings, UserCog, Wrench, X, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { APP_CONFIG } from '../config/constants'
+import { cn } from '@/lib/utils'
 
 const iconMap = {
-  BarChart2,
-  ShoppingCart,
-  ListChecks,
-  Users,
-  UserCog,
-  Home,
-  Settings
+  LayoutDashboard, Package, ClipboardList, Users, UserCog, Wrench, Settings
 }
 
 const sidebarItems = [
-  { key: "dashboard", label: "Dashboard", icon: "BarChart2", to: "/" },
-  { key: "produk", label: "Produk", icon: "ShoppingCart", to: "/produk" },
-  { key: "pesanan", label: "Pesanan", icon: "ListChecks", to: "/pesanan" },
-  { key: "pengguna", label: "Pengguna", icon: "Users", to: "/pengguna" },
-  { key: "akun-pelanggan", label: "Akun Pelanggan", icon: "UserCog", to: "/akun-pelanggan" },
-  { key: "layanan", label: "Layanan", icon: "Home", to: "/layanan" },
-  { key: "pengaturan", label: "Pengaturan", icon: "Settings", to: "/pengaturan" },
+  { key: "dashboard",      label: "Dashboard",       icon: "LayoutDashboard", to: "/" },
+  { key: "produk",         label: "Produk",           icon: "Package",         to: "/produk" },
+  { key: "pesanan",        label: "Pesanan",          icon: "ClipboardList",   to: "/pesanan" },
+  { key: "pengguna",       label: "Pengguna",         icon: "Users",           to: "/pengguna" },
+  { key: "akun-pelanggan", label: "Akun Pelanggan",   icon: "UserCog",         to: "/akun-pelanggan" },
+  { key: "layanan",        label: "Layanan",          icon: "Wrench",          to: "/layanan" },
+  { key: "pengaturan",     label: "Pengaturan",       icon: "Settings",        to: "/pengaturan" },
 ]
 
-export default function Sidebar({ dark, activeKey, mobileOpen, setMobileOpen }) {
-  const handleLinkClick = () => {
-    // Close mobile sidebar when a link is clicked
-    if (setMobileOpen) setMobileOpen(false)
-  }
-
-  const sidebarContent = (
-    <>
-      <div className="flex items-center justify-between">
+function SidebarContent({ activeKey, setMobileOpen }) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="flex items-center justify-between px-4 py-5 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-olaTosca to-olaBlue flex items-center justify-center text-white shadow">
-            <Home className="w-6 h-6" />
+          <div className="w-8 h-8 rounded-lg bg-olaTosca/15 border border-olaTosca/30 flex items-center justify-center flex-shrink-0">
+            <Zap className="w-4 h-4 text-olaTosca" />
           </div>
           <div>
-            <div className="text-lg font-bold text-white">{APP_CONFIG.APP_NAME}</div>
-            <div className="text-sm text-white/80">Admin Dashboard</div>
+            <div className="text-sm font-bold text-foreground">{APP_CONFIG.APP_NAME}</div>
+            <div className="text-[10px] text-muted-foreground">Admin Dashboard</div>
           </div>
         </div>
-        {/* Close button for mobile */}
-        <button 
-          onClick={() => setMobileOpen && setMobileOpen(false)}
-          className="md:hidden p-2 rounded-md hover:bg-white/10 transition"
-        >
-          <X className="w-6 h-6 text-white" />
-        </button>
+        {setMobileOpen && (
+          <button onClick={() => setMobileOpen(false)} className="md:hidden p-1 rounded hover:bg-accent transition">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 flex flex-col gap-2 mt-6">
-        {sidebarItems.map(item => (
-          <SidebarLink
-            key={item.key}
-            item={item}
-            active={activeKey === item.key}
-            dark={dark}
-            onClick={handleLinkClick}
-          />
-        ))}
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-3 mb-2">Menu</p>
+        {sidebarItems.map(item => {
+          const Icon = iconMap[item.icon]
+          const isActive = activeKey === item.key
+          return (
+            <Link
+              key={item.key}
+              to={item.to}
+              onClick={() => setMobileOpen && setMobileOpen(false)}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group',
+                isActive
+                  ? 'bg-olaTosca/15 text-olaTosca border border-olaTosca/20'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+              )}
+            >
+              <span className={cn(
+                'w-4 h-4 flex-shrink-0 transition-colors',
+                isActive ? 'text-olaTosca' : 'text-muted-foreground group-hover:text-foreground'
+              )}>
+                {Icon && <Icon className="w-4 h-4" />}
+              </span>
+              {item.label}
+              {isActive && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-olaTosca" />
+              )}
+            </Link>
+          )
+        })}
       </nav>
-      <div className="text-xs text-white/70">© {new Date().getFullYear()} {APP_CONFIG.APP_NAME}</div>
-    </>
-  )
 
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-border">
+        <p className="text-[10px] text-muted-foreground">© {new Date().getFullYear()} {APP_CONFIG.APP_NAME}</p>
+      </div>
+    </div>
+  )
+}
+
+export default function Sidebar({ dark, activeKey, mobileOpen, setMobileOpen }) {
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside className="w-72 hidden md:flex flex-col p-6 gap-6 rounded-tr-2xl rounded-br-2xl shadow-lg mr-6 bg-gradient-to-b from-startupPurple/90 via-olaBlue/60 to-olaTosca/40">
-        {sidebarContent}
+      {/* Desktop */}
+      <aside className="w-56 hidden md:flex flex-col h-screen sticky top-0 bg-card border-r border-border flex-shrink-0">
+        <SidebarContent activeKey={activeKey} />
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileOpen && setMobileOpen(false)}
-              className="md:hidden fixed inset-0 bg-black/50 z-40"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setMobileOpen(false)}
+              className="md:hidden fixed inset-0 bg-black/60 z-40"
             />
-            {/* Sidebar */}
             <motion.aside
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: 'tween', duration: 0.25 }}
-              className="md:hidden fixed left-0 top-0 h-full w-72 flex flex-col p-6 gap-4 shadow-xl z-50 bg-gradient-to-b from-startupPurple via-olaBlue to-olaTosca"
+              initial={{ x: -240 }} animate={{ x: 0 }} exit={{ x: -240 }}
+              transition={{ type: 'tween', duration: 0.22 }}
+              className="md:hidden fixed left-0 top-0 h-full w-56 bg-card border-r border-border z-50"
             >
-              {sidebarContent}
+              <SidebarContent activeKey={activeKey} setMobileOpen={setMobileOpen} />
             </motion.aside>
           </>
         )}
       </AnimatePresence>
     </>
-  )
-}
-
-function SidebarLink({ item, active, dark, onClick }) {
-  const IconComponent = iconMap[item.icon]
-  
-  return (
-    <Link 
-      to={item.to} 
-      onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md transition ${active ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/8'}`}
-    >
-      <span className={`p-2 rounded-md ${active ? 'bg-white/10' : ''}`}>
-        {IconComponent && <IconComponent className="w-5 h-5" />}
-      </span>
-      <span className={`text-sm font-medium ${active ? 'text-white' : 'text-white/90'}`}>{item.label}</span>
-    </Link>
   )
 }
 
