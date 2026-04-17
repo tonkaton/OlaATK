@@ -115,24 +115,44 @@ export default function Riwayat() {
                 <div className="border-t border-dashed border-gray-100 pt-4 mt-2">
                    {/* Detail Barang/File */}
                    <div className="flex flex-col md:flex-row justify-between gap-4">
-                      <div>
+                      <div className="w-full">
                         <p className="text-xs font-bold text-gray-400 uppercase mb-2">Detail Pesanan</p>
-                        <ul className="text-sm text-gray-700 space-y-1">
-                          {order.barangTerbeli && order.barangTerbeli.length > 0 ? (
-                             order.barangTerbeli.map((item, idx) => (
-                               <li key={idx} className="flex items-center gap-2">
-                                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
-                                 {item.nama_barang} <span className="text-gray-400">x{item.jumlah}</span>
-                               </li>
-                             ))
-                          ) : (
+                        
+                        {order.barangTerbeli && order.barangTerbeli.length > 0 ? (
+                          <>
+                            <ul className="text-sm text-gray-700 space-y-1.5">
+                              {order.barangTerbeli.map((item, idx) => (
+                                <li key={idx} className="flex items-center justify-between gap-4">
+                                  <span className="flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full flex-shrink-0"></span>
+                                    {item.nama_barang} <span className="text-gray-400">x{item.jumlah}</span>
+                                  </span>
+                                  <span className="text-gray-600 font-medium text-xs whitespace-nowrap">
+                                    {item.harga_satuan > 0
+                                      ? `Rp ${(item.harga_satuan * item.jumlah).toLocaleString('id-ID')}`
+                                      : '-'
+                                    }
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="mt-2 pt-2 border-t border-dashed border-gray-100 flex justify-between text-xs text-gray-400">
+                              <span>Subtotal</span>
+                              <span className="font-bold text-gray-600">
+                                Rp {order.barangTerbeli.reduce((sum, item) => sum + (item.harga_satuan * item.jumlah), 0).toLocaleString('id-ID')}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <ul className="text-sm text-gray-700 space-y-1">
                             <li>Detail belum diproses admin</li>
-                          )}
-                        </ul>
+                          </ul>
+                        )}
+
                       </div>
                       
                       {order.nama_file && (
-                        <div className="text-right">
+                        <div className="text-left md:text-right mt-4 md:mt-0">
                            <p className="text-xs font-bold text-gray-400 uppercase mb-2">File Upload</p>
                            <a 
                              href={`${API_BASE_URL}/uploads/${order.nama_file}`} 
@@ -147,12 +167,12 @@ export default function Riwayat() {
                    </div>
 
                    {/* Catatan & Total */}
-                   <div className="mt-4 flex justify-between items-end bg-gray-50 p-3 rounded-lg">
+                   <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-end bg-gray-50 p-3 rounded-lg gap-4 sm:gap-0">
                       <div className="text-xs text-gray-500 italic max-w-xs">
                         "{order.catatan_pesanan || 'Tidak ada catatan tambahan'}"
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">Total Biaya</p>
+                      <div className="text-left sm:text-right w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0">
+                        <p className="text-xs text-gray-400">Total Biaya Akhir</p>
                         <p className="text-lg font-bold text-gray-800">
                           {order.nilai_pesanan > 0 
                             ? `Rp ${order.nilai_pesanan.toLocaleString('id-ID')}` 

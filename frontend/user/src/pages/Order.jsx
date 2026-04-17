@@ -194,27 +194,57 @@ export default function Order() {
     const items = []
     const sName = selectedService?.nama || ''
     const copies = parseInt(orderDetails.copies) || 1
-
+    const kertas = orderDetails.paperSize.toLowerCase()
+  
     if (sName.toLowerCase().includes('cetak') || sName.toLowerCase().includes('print')) {
+      const hargaBw = parseInt(priceList?.[`harga_cetak_${kertas}_bw`]) || 0
+      const hargaWarna = parseInt(priceList?.[`harga_cetak_${kertas}_color`]) || 0
+  
       if (orderDetails.colorMode === 'Campur') {
-        if (orderDetails.bwPages > 0) items.push({ nama_barang: `Cetak ${orderDetails.paperSize} (Hitam Putih)`, harga_satuan: 0, jumlah: parseInt(orderDetails.bwPages) * copies })
-        if (orderDetails.colorPages > 0) items.push({ nama_barang: `Cetak ${orderDetails.paperSize} (Berwarna)`, harga_satuan: 0, jumlah: parseInt(orderDetails.colorPages) * copies })
+        if (orderDetails.bwPages > 0) items.push({
+          nama_barang: `Cetak ${orderDetails.paperSize} (Hitam Putih)`,
+          harga_satuan: hargaBw,
+          jumlah: parseInt(orderDetails.bwPages) * copies
+        })
+        if (orderDetails.colorPages > 0) items.push({
+          nama_barang: `Cetak ${orderDetails.paperSize} (Berwarna)`,
+          harga_satuan: hargaWarna,
+          jumlah: parseInt(orderDetails.colorPages) * copies
+        })
       } else {
+        const harga = orderDetails.colorMode === 'Berwarna' ? hargaWarna : hargaBw
         items.push({
           nama_barang: `Cetak ${orderDetails.paperSize} (${orderDetails.colorMode})`,
-          harga_satuan: 0,
+          harga_satuan: harga,
           jumlah: (parseInt(orderDetails.totalPages) || 1) * copies
         })
       }
+  
       if (orderDetails.bindingType !== 'Tidak Ada') {
-        items.push({ nama_barang: `Jilid ${orderDetails.bindingType}`, harga_satuan: 0, jumlah: copies })
+        const type = orderDetails.bindingType.toLowerCase().split(' ')[0]
+        const hargaJilid = parseInt(priceList?.[`harga_jilid_${type}`]) || 0
+        items.push({
+          nama_barang: `Jilid ${orderDetails.bindingType}`,
+          harga_satuan: hargaJilid,
+          jumlah: copies
+        })
       }
     } else if (sName.toLowerCase().includes('jilid')) {
-      items.push({ nama_barang: `Jilid ${orderDetails.bindingType}`, harga_satuan: 0, jumlah: copies })
+      const type = orderDetails.bindingType.toLowerCase().split(' ')[0]
+      const hargaJilid = parseInt(priceList?.[`harga_jilid_${type}`]) || 0
+      items.push({
+        nama_barang: `Jilid ${orderDetails.bindingType}`,
+        harga_satuan: hargaJilid,
+        jumlah: copies
+      })
     } else {
-      items.push({ nama_barang: sName, harga_satuan: 0, jumlah: copies })
+      items.push({
+        nama_barang: sName,
+        harga_satuan: parseInt(priceList?.[`harga_${sName.toLowerCase()}`]) || 0,
+        jumlah: copies
+      })
     }
-
+  
     return items
   }
 
@@ -248,11 +278,8 @@ export default function Order() {
         catch (uErr) { return setError('Gagal upload file. Cek koneksi internet.') }
       }
 
-      // 2. Hitung harga per item untuk Midtrans
-      const itemsPayload = generateOrderItems().map(item => ({
-        ...item,
-        harga_satuan: item.jumlah > 0 ? Math.round(totalHarga / generateOrderItems().reduce((s, i) => s + i.jumlah, 0)) : 0
-      }))
+      // 2. Tembak items dari generateOrderItems murni
+      const itemsPayload = generateOrderItems()
 
       // 3. Request snap token ke backend
       const tokenResponse = await paymentAPI.createToken({
