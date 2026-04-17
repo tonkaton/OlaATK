@@ -104,14 +104,34 @@ const pesananRoutes: RouteDefinitions = {
           });
 
           if (dto.items && dto.items.length > 0) {
-            await tx.barangTerbeli.createMany({
-              data: dto.items.map((item) => ({
-                id_pesanan: pesanan.id,
-                nama_barang: item.nama_barang,
-                harga_satuan: item.harga_satuan,
-                jumlah: item.jumlah,
-              })),
-            });
+            for (const item of dto.items) {
+              // Cek apakah item ini produk dari stok_barang
+              const stokBarang = (item as any).stok_barang_id
+                ? await tx.stokBarang.findUnique({ where: { id: (item as any).stok_barang_id } })
+                : null;
+
+              // Validasi stok cukup
+              if (stokBarang) {
+                if (stokBarang.jumlah_stok < item.jumlah) {
+                  throw new Error(`Stok ${stokBarang.nama} tidak cukup. Tersedia: ${stokBarang.jumlah_stok}`);
+                }
+                // Kurangi stok
+                await tx.stokBarang.update({
+                  where: { id: stokBarang.id },
+                  data: { jumlah_stok: { decrement: item.jumlah } },
+                });
+              }
+
+              await tx.barangTerbeli.create({
+                data: {
+                  id_pesanan: pesanan.id,
+                  stok_barang_id: (item as any).stok_barang_id ?? null,
+                  nama_barang: item.nama_barang,
+                  harga_satuan: item.harga_satuan || 0,
+                  jumlah: item.jumlah || 1,
+                },
+              });
+            }
           }
           return pesanan;
         });
@@ -122,8 +142,11 @@ const pesananRoutes: RouteDefinitions = {
         });
 
         return { success: true, statusCode: 201, data: { pesanan: createdPesanan } };
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error creating pesanan:", error);
+        if (error.message?.includes("Stok")) {
+          return { success: false, statusCode: 400, message: error.message };
+        }
         return { success: false, message: "Gagal membuat pesanan" };
       }
     },
@@ -181,14 +204,34 @@ const pesananRoutes: RouteDefinitions = {
           });
 
           if (items && Array.isArray(items) && items.length > 0) {
-            await tx.barangTerbeli.createMany({
-              data: items.map((item: any) => ({
-                id_pesanan: pesanan.id,
-                nama_barang: item.nama_barang,
-                harga_satuan: item.harga_satuan || 0,
-                jumlah: item.jumlah || 1,
-              })),
-            });
+            for (const item of items) {
+              // Cek apakah item ini produk dari stok_barang
+              const stokBarang = item.stok_barang_id
+                ? await tx.stokBarang.findUnique({ where: { id: item.stok_barang_id } })
+                : null;
+
+              // Validasi stok cukup
+              if (stokBarang) {
+                if (stokBarang.jumlah_stok < item.jumlah) {
+                  throw new Error(`Stok ${stokBarang.nama} tidak cukup. Tersedia: ${stokBarang.jumlah_stok}`);
+                }
+                // Kurangi stok
+                await tx.stokBarang.update({
+                  where: { id: stokBarang.id },
+                  data: { jumlah_stok: { decrement: item.jumlah } },
+                });
+              }
+
+              await tx.barangTerbeli.create({
+                data: {
+                  id_pesanan: pesanan.id,
+                  stok_barang_id: item.stok_barang_id ?? null,
+                  nama_barang: item.nama_barang,
+                  harga_satuan: item.harga_satuan || 0,
+                  jumlah: item.jumlah || 1,
+                },
+              });
+            }
           }
 
           return pesanan;
@@ -200,8 +243,11 @@ const pesananRoutes: RouteDefinitions = {
         });
 
         return { success: true, statusCode: 201, data: { pesanan: finalPesanan } };
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error public pesanan:", error);
+        if (error.message?.includes("Stok")) {
+          return { success: false, statusCode: 400, message: error.message };
+        }
         return { success: false, message: "Gagal membuat pesanan public" };
       }
     },
@@ -295,7 +341,7 @@ const pesananRoutes: RouteDefinitions = {
   },
 
   // ==========================================
-  // 4. UPDATE STATUS
+  // 4. UPDATE STATUS (WITH STOK ROLLBACK)
   // ==========================================
   "/pesanan/:id/status": {
     put: async (req) => {
@@ -313,15 +359,37 @@ const pesananRoutes: RouteDefinitions = {
 
       try {
         const prisma = await getPrismaClient();
-        const updatedPesanan = await prisma.pesanan.update({
-          where: { id },
-          data: { status: dto.status },
-          include: { pelanggan: true, barangTerbeli: true },
+        const updatedPesanan = await prisma.$transaction(async (tx) => {
+          // Kalau status BATAL, rollback stok produk
+          if (dto.status === 'BATAL') {
+            const pesanan = await tx.pesanan.findUnique({
+              where: { id },
+              include: { barangTerbeli: true },
+            });
+
+            if (pesanan) {
+              for (const item of pesanan.barangTerbeli) {
+                if (item.stok_barang_id) {
+                  await tx.stokBarang.update({
+                    where: { id: item.stok_barang_id },
+                    data: { jumlah_stok: { increment: item.jumlah } },
+                  });
+                }
+              }
+            }
+          }
+
+          return tx.pesanan.update({
+            where: { id },
+            data: { status: dto.status },
+            include: { pelanggan: true, barangTerbeli: true },
+          });
         });
 
         return { success: true, data: { pesanan: updatedPesanan }, message: `Status diubah menjadi ${dto.status}` };
       } catch (error: any) {
         if (error.code === "P2025") return { success: false, statusCode: 404, message: "Pesanan tidak ditemukan" };
+        if (error.message?.includes("Stok")) return { success: false, statusCode: 400, message: error.message };
         return { success: false, message: "Gagal memperbarui status pesanan" };
       }
     },
@@ -334,7 +402,7 @@ const pesananRoutes: RouteDefinitions = {
     get: async (req) => {
       try {
         const prisma = await getPrismaClient();
-        
+
         // Ambil query param 'mode'
         const mode = req.query?.['mode'] as string | undefined;
 
@@ -343,12 +411,12 @@ const pesananRoutes: RouteDefinitions = {
 
         // Bikin filter
         const whereClause: any = {
-           created_at: { gte: startOfDay, lte: endOfDay }
+          created_at: { gte: startOfDay, lte: endOfDay }
         };
 
         // Kalau ada ?mode=..., tambahin ke filter
         if (mode) {
-            whereClause.mode_pesanan = mode;
+          whereClause.mode_pesanan = mode;
         }
 
         const count = await prisma.pesanan.count({

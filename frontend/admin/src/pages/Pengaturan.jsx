@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Section from '../components/Section'
 import { configAPI } from '../services/api'
-import { Save, CheckCircle, AlertCircle, Settings } from 'lucide-react'
+import { Save, CheckCircle, AlertCircle, Settings, ChevronDown } from 'lucide-react'
 
 export default function Pengaturan({ dark }) {
   const [configs, setConfigs] = useState([])
@@ -10,6 +10,7 @@ export default function Pengaturan({ dark }) {
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
   const [formData, setFormData] = useState({})
+  const [expandedService, setExpandedService] = useState(null) // 'cetak', 'fotokopi', etc
   
   // State baru untuk melacak tab yang aktif
   const [activeGroup, setActiveGroup] = useState('umum')
@@ -47,7 +48,7 @@ export default function Pengaturan({ dark }) {
   }
 
   const handleSave = async (e) => {
-    if (e) e.preventDefault() // Handle form submit event
+    if (e) e.preventDefault()
     try {
       setSaving(true)
       setError(null)
@@ -70,7 +71,6 @@ export default function Pengaturan({ dark }) {
     }
   }
 
-  // Khusus textarea agar Enter bikin baris baru, Ctrl+Enter untuk Save
   const handleTextareaKeyDown = (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
@@ -87,18 +87,15 @@ export default function Pengaturan({ dark }) {
       grouped[config.grup].push(config)
     })
     
-    // Sort groups: 'umum' first, then alphabetically
     const sortedGrouped = {}
     const groupOrder = ['umum', 'kontak', 'harga', 'tampilan']
     
-    // First add ordered groups
     groupOrder.forEach(grup => {
       if (grouped[grup]) {
         sortedGrouped[grup] = grouped[grup]
       }
     })
     
-    // Then add any other groups alphabetically
     Object.keys(grouped)
       .filter(grup => !groupOrder.includes(grup))
       .sort()
@@ -119,6 +116,91 @@ export default function Pengaturan({ dark }) {
     return titles[grup] || grup.toUpperCase()
   }
 
+  // GROUP HARGA BY SERVICE
+  const groupHargaByService = (hargaConfigs) => {
+    const services = {
+      'cetak': { label: 'Harga Cetak', configs: [] },
+      'fotokopi': { label: 'Harga Fotokopi', configs: [] },
+      'laminating': { label: 'Harga Laminating', configs: [] },
+      'jilid': { label: 'Harga Jilid', configs: [] },
+      'scan': { label: 'Harga Scan', configs: [] }
+    }
+
+    hargaConfigs.forEach(config => {
+      if (config.kunci.includes('cetak')) services.cetak.configs.push(config)
+      else if (config.kunci.includes('fotokopi')) services.fotokopi.configs.push(config)
+      else if (config.kunci.includes('laminating')) services.laminating.configs.push(config)
+      else if (config.kunci.includes('jilid')) services.jilid.configs.push(config)
+      else if (config.kunci.includes('scan')) services.scan.configs.push(config)
+    })
+
+    return Object.entries(services).filter(([_, s]) => s.configs.length > 0)
+  }
+
+  const renderHargaCollapse = (hargaConfigs) => {
+    const serviceGroups = groupHargaByService(hargaConfigs)
+
+    return (
+      <div className="space-y-3">
+        {serviceGroups.map(([serviceKey, serviceData]) => (
+          <div key={serviceKey} className={`border rounded-xl overflow-hidden ${dark ? 'border-slate-700' : 'border-gray-200'}`}>
+            {/* COLLAPSE HEADER */}
+            <button
+              type="button"
+              onClick={() => setExpandedService(expandedService === serviceKey ? null : serviceKey)}
+              className={`w-full px-6 py-4 flex items-center justify-between font-bold text-sm transition ${
+                expandedService === serviceKey
+                  ? dark ? 'bg-slate-700 text-olaTosca' : 'bg-olaTosca/10 text-olaTosca'
+                  : dark ? 'bg-slate-800 hover:bg-slate-750' : 'bg-white hover:bg-gray-50'
+              }`}
+            >
+              <span>{serviceData.label}</span>
+              <ChevronDown 
+                size={18} 
+                className={`transition ${expandedService === serviceKey ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {/* COLLAPSE CONTENT */}
+            {expandedService === serviceKey && (
+              <div className={`p-6 space-y-4 border-t ${dark ? 'border-slate-700 bg-slate-900/50' : 'border-gray-100 bg-gray-50'}`}>
+                {serviceData.configs.map(config => (
+                  <div key={config.id}>
+                    <label className="block text-xs font-bold uppercase opacity-60 mb-2">
+                      {config.kunci.replace(/_/g, ' ')}
+                    </label>
+                    {config.deskripsi && (
+                      <p className="text-xs opacity-50 mb-1.5 italic">{config.deskripsi}</p>
+                    )}
+                    
+                    {config.tipe === 'textarea' ? (
+                      <textarea
+                        className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-olaTosca outline-none resize-none transition ${dark ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
+                        rows="2"
+                        value={formData[config.id] || ''}
+                        onChange={(e) => handleChange(config.id, e.target.value)}
+                        onKeyDown={handleTextareaKeyDown}
+                        placeholder={`Masukkan ${config.kunci}`}
+                      />
+                    ) : (
+                      <input
+                        type={config.tipe === 'number' ? 'number' : 'text'}
+                        className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-olaTosca outline-none transition ${dark ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
+                        value={formData[config.id] || ''}
+                        onChange={(e) => handleChange(config.id, e.target.value)}
+                        placeholder={`Masukkan ${config.kunci}`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <Section dark={dark} title="Pengaturan Sistem">
@@ -133,7 +215,6 @@ export default function Pengaturan({ dark }) {
   const groupedConfigs = groupConfigs(configs)
   const availableGroups = Object.keys(groupedConfigs)
   
-  // Fallback jika activeGroup tidak valid, otomatis pilih yang pertama
   const currentGroup = availableGroups.includes(activeGroup) ? activeGroup : availableGroups[0]
 
   return (
@@ -145,7 +226,7 @@ export default function Pengaturan({ dark }) {
           <div>
             <h2 className="font-bold text-lg flex items-center gap-2"><Settings size={18} className="text-olaTosca"/> Konfigurasi Aplikasi</h2>
             <p className="text-xs opacity-70 mt-1">
-              Tekan <kbd className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${dark ? 'bg-slate-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>Enter</kbd> untuk menyimpan perubahan cepat.
+              Expand kategori untuk edit. Tekan <kbd className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${dark ? 'bg-slate-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>Ctrl+Enter</kbd> untuk simpan cepat.
             </p>
           </div>
           <button 
@@ -196,37 +277,42 @@ export default function Pengaturan({ dark }) {
               {getGroupTitle(currentGroup)}
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-              {groupedConfigs[currentGroup].map(config => (
-                <div key={config.id} className={config.tipe === 'textarea' ? 'md:col-span-2' : ''}>
-                  <label className="block text-sm font-bold mb-1 capitalize">
-                    {config.kunci.replace(/_/g, ' ')}
-                  </label>
-                  {config.deskripsi && (
-                    <p className="text-xs opacity-60 mb-2">{config.deskripsi}</p>
-                  )}
-                  
-                  {config.tipe === 'textarea' ? (
-                    <textarea
-                      className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-olaTosca outline-none resize-none transition ${dark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
-                      rows="3"
-                      value={formData[config.id] || ''}
-                      onChange={(e) => handleChange(config.id, e.target.value)}
-                      onKeyDown={handleTextareaKeyDown}
-                      placeholder={`Masukkan ${config.kunci}`}
-                    />
-                  ) : (
-                    <input
-                      type={config.tipe === 'number' ? 'number' : 'text'}
-                      className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-olaTosca outline-none transition ${dark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
-                      value={formData[config.id] || ''}
-                      onChange={(e) => handleChange(config.id, e.target.value)}
-                      placeholder={`Masukkan ${config.kunci}`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
+            {/* SPECIAL RENDER UNTUK HARGA GROUP */}
+            {currentGroup === 'harga' ? (
+              renderHargaCollapse(groupedConfigs[currentGroup])
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                {groupedConfigs[currentGroup].map(config => (
+                  <div key={config.id} className={config.tipe === 'textarea' ? 'md:col-span-2' : ''}>
+                    <label className="block text-sm font-bold mb-1 capitalize">
+                      {config.kunci.replace(/_/g, ' ')}
+                    </label>
+                    {config.deskripsi && (
+                      <p className="text-xs opacity-60 mb-2">{config.deskripsi}</p>
+                    )}
+                    
+                    {config.tipe === 'textarea' ? (
+                      <textarea
+                        className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-olaTosca outline-none resize-none transition ${dark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                        rows="3"
+                        value={formData[config.id] || ''}
+                        onChange={(e) => handleChange(config.id, e.target.value)}
+                        onKeyDown={handleTextareaKeyDown}
+                        placeholder={`Masukkan ${config.kunci}`}
+                      />
+                    ) : (
+                      <input
+                        type={config.tipe === 'number' ? 'number' : 'text'}
+                        className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-olaTosca outline-none transition ${dark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                        value={formData[config.id] || ''}
+                        onChange={(e) => handleChange(config.id, e.target.value)}
+                        placeholder={`Masukkan ${config.kunci}`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

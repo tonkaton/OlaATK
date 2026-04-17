@@ -154,6 +154,22 @@ async function seed() {
         grup: "harga",
         urutan: 16
       },
+      {
+        kunci: "harga_fotokopi_a4_color",
+        nilai: "2000",
+        deskripsi: "Harga Fotokopi A4 Berwarna (per lembar)",
+        tipe: "number",
+        grup: "harga",
+        urutan: 17
+      },
+      {
+        kunci: "harga_fotokopi_f4_color",
+        nilai: "2500",
+        deskripsi: "Harga Fotokopi F4 Berwarna (per lembar)",
+        tipe: "number",
+        grup: "harga",
+        urutan: 18
+      },
       // Laminating
       {
         kunci: "harga_laminating_a4",
@@ -161,7 +177,7 @@ async function seed() {
         deskripsi: "Harga Laminating A4 (per lembar)",
         tipe: "number",
         grup: "harga",
-        urutan: 17
+        urutan: 19
       },
       {
         kunci: "harga_laminating_f4",
@@ -169,7 +185,7 @@ async function seed() {
         deskripsi: "Harga Laminating F4 (per lembar)",
         tipe: "number",
         grup: "harga",
-        urutan: 18
+        urutan: 20
       },
       // Scan
       {
@@ -178,7 +194,7 @@ async function seed() {
         deskripsi: "Harga Scan (per halaman)",
         tipe: "number",
         grup: "harga",
-        urutan: 19
+        urutan: 21
       }
     ]
   });

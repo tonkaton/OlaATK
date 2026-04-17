@@ -1,13 +1,14 @@
 model BarangTerbeli {
-  id              Int     @id @default(autoincrement()) @db.UnsignedInt
-  id_pesanan      Int     @db.UnsignedInt
+  id              Int         @id @default(autoincrement()) @db.UnsignedInt
+  id_pesanan      Int         @db.UnsignedInt
+  stok_barang_id  Int?        @db.UnsignedInt
 
   nama_barang     String
   harga_satuan    Float
   jumlah          Int
 
-  /* Foreign Key Relations */
-  pesanan         Pesanan @relation(fields: [id_pesanan], references: [id], onDelete: Cascade)
+  pesanan         Pesanan     @relation(fields: [id_pesanan], references: [id], onDelete: Cascade)
+  stokBarang      StokBarang? @relation(fields: [stok_barang_id], references: [id], onDelete: SetNull)
 
   @@map("barang_terbeli")
 }

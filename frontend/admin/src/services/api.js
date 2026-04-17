@@ -134,6 +134,13 @@ export const productsAPI = {
     const response = await api.get('/stok-barang', { params })
     return response.data.data || response.data
   },
+  // [WAJIB ADA] Buat Dropdown Kasir - tanpa pagination
+  getAllForDropdown: async () => {
+    const params = { page: 1, limit: 999 }
+    const response = await api.get('/stok-barang', { params })
+    const data = response.data.data || response.data
+    return data.stokBarang || data
+  },
   getById: async (id) => {
     const response = await api.get(`/stok-barang/${id}`)
     return response.data.stokBarang

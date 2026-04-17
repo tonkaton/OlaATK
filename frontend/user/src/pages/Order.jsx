@@ -259,7 +259,7 @@ export default function Order() {
     setError('')
 
     if (!contactForm.name || !contactForm.phone || !contactForm.alamat) return setError('Data diri wajib diisi semua')
-    const isPrintService = selectedService?.nama.toLowerCase().includes('cetak')
+    const isPrintService = selectedService?.nama.toLowerCase().includes('print')
     if (isPrintService && !file && !uploadedFileName) return setError('Mohon upload dokumen yang ingin dicetak')
     if (isPrintService && orderDetails.colorMode === 'Campur') {
       if (orderDetails.bwPages <= 0 && orderDetails.colorPages <= 0) return setError('Mohon isi jumlah halaman Hitam Putih atau Berwarna')
@@ -394,7 +394,7 @@ export default function Order() {
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><span className="bg-olaTosca text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> Detail {selectedService.nama}</h2>
 
             <div className="space-y-6">
-              {selectedService.nama.toLowerCase().includes('cetak') && (
+              {selectedService.nama.toLowerCase().includes('print') && (
                 <>
                   <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${file ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-olaTosca'}`}>
                     <input type="file" id="fileUpload" onChange={handleFile} className="hidden" accept=".pdf,.doc,.docx,.jpg,.png" />
