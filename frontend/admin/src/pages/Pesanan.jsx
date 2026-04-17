@@ -389,24 +389,24 @@ export default function Pesanan({ dark }) {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                      {/* JUMLAH RANGKAP — semua layanan */}
+                      {/* JUMLAH RANGKAP — semua layanan (DIBUAT KONSISTEN) */}
                       <div>
                         <label className="text-xs font-bold text-olaTosca block mb-1">
-                          {isCetakService ? 'Jumlah Rangkap (Buku/Bundel)' : 'Jumlah'}
+                          Jumlah Rangkap
                         </label>
                         <input type="number" min="1" value={offlineDetails.copies}
                           onChange={e => setOfflineDetails({...offlineDetails, copies: e.target.value})}
                           className={`w-full p-2 rounded border-2 border-olaTosca/30 focus:border-olaTosca ${dark ? 'bg-slate-800' : 'bg-white'}`}/>
                       </div>
 
-                      {/* TOTAL HALAMAN/LEMBAR — cetak, fotokopi, laminating, scan */}
+                      {/* TOTAL HALAMAN/LEMBAR — cetak, fotokopi, laminating, scan (DIBUAT KONSISTEN) */}
                       {(isCetakService || isFotokopiService || isLaminatingService || isScanService) && offlineDetails.colorMode !== 'Campur' && (
                         <div>
                           <label className="text-xs font-bold text-blue-500 block mb-1">
-                            {isCetakService ? 'Total Halaman per Buku' :
-                             isLaminatingService ? 'Jumlah Lembar Laminating' :
-                             isScanService ? 'Jumlah Halaman Scan' :
-                             'Jumlah Lembar Fotokopi'}
+                            {isCetakService || isFotokopiService ? 'Total Halaman' :
+                             isLaminatingService ? 'Total Lembar' :
+                             isScanService ? 'Total Lembar' :
+                             'Total Halaman'}
                           </label>
                           <input type="number" min="1" value={offlineDetails.totalPages}
                             onChange={e => setOfflineDetails({...offlineDetails, totalPages: e.target.value})}
