@@ -148,7 +148,7 @@ function ServicesPreview() {
         } else {
           // Fallback kalau API mati/kosong
           all = [
-            { id: 1, nama: 'Cetak Dokumen', nama_icon: 'printer', deskripsi: 'Print A4/F4' },
+            { id: 1, nama: 'Print Dokumen', nama_icon: 'printer', deskripsi: 'Print A4/F4' },
             { id: 2, nama: 'Fotokopi', nama_icon: 'copy', deskripsi: 'Perbanyak dokumen' },
             { id: 3, nama: 'Jilid', nama_icon: 'book', deskripsi: 'Softcover/Hardcover' },
             { id: 4, nama: 'Scan', nama_icon: 'scan', deskripsi: 'Scan ke PDF' }

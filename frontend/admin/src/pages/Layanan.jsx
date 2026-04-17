@@ -161,7 +161,7 @@ export default function Layanan({ dark }) {
                 <input 
                   value={formData.nama} 
                   onChange={e => setFormData(f => ({ ...f, nama: e.target.value }))} 
-                  placeholder="Contoh: Cetak Dokumen" 
+                  placeholder="Contoh: Print Dokumen" 
                   className={`w-full p-2 rounded border ${dark ? 'bg-slate-700 border-slate-600' : 'bg-white border-gray-300'}`}
                 />
             </div>

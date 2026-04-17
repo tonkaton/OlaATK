@@ -186,33 +186,81 @@ export default function Pesanan({ dark }) {
     e.preventDefault()
     if (!offlineForm.name || !offlineForm.service) return alert("Wajib isi Nama & Layanan")
     if (offlineDetails.colorMode === 'Campur' && offlineDetails.bwPages <= 0 && offlineDetails.colorPages <= 0) {
-        return alert("Isi jumlah halaman Hitam Putih atau Berwarna!")
+      return alert("Isi jumlah halaman Hitam Putih atau Berwarna!")
     }
 
     setSubmitLoading(true)
     try {
       const items = []
       const copies = parseInt(offlineDetails.copies)
-      const isCetak = offlineForm.service.nama.toLowerCase().includes('cetak') || offlineForm.service.nama.toLowerCase().includes('print');
+      const kertas = offlineDetails.paperSize.toLowerCase()
+      const nama = offlineForm.service.nama.toLowerCase()
+      const isCetak = nama.includes('cetak') || nama.includes('print')
+      const isFotokopi = nama.includes('fotokopi') || nama.includes('fotocopy')
+      const isLaminating = nama.includes('laminating')
+      const isScan = nama.includes('scan')
+      const isJilid = nama.includes('jilid') && !isCetak
 
       if (isCetak) {
-          if (offlineDetails.colorMode === 'Campur') {
-              if (offlineDetails.bwPages > 0) items.push({ nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (Hitam Putih)`, harga_satuan: 0, jumlah: parseInt(offlineDetails.bwPages) * copies })
-              if (offlineDetails.colorPages > 0) items.push({ nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (Berwarna)`, harga_satuan: 0, jumlah: parseInt(offlineDetails.colorPages) * copies })
-          } else {
-              items.push({
-                nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (${offlineDetails.colorMode})`,
-                harga_satuan: 0,
-                jumlah: (parseInt(offlineDetails.totalPages) || 1) * copies 
-              })
-          }
+        const hargaBw = parseInt(priceList?.[`harga_cetak_${kertas}_bw`]) || 0
+        const hargaWarna = parseInt(priceList?.[`harga_cetak_${kertas}_color`]) || 0
+
+        if (offlineDetails.colorMode === 'Campur') {
+          if (offlineDetails.bwPages > 0) items.push({
+            nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (Hitam Putih)`,
+            harga_satuan: hargaBw,
+            jumlah: parseInt(offlineDetails.bwPages) * copies
+          })
+          if (offlineDetails.colorPages > 0) items.push({
+            nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (Berwarna)`,
+            harga_satuan: hargaWarna,
+            jumlah: parseInt(offlineDetails.colorPages) * copies
+          })
+        } else {
+          const harga = offlineDetails.colorMode === 'Berwarna' ? hargaWarna : hargaBw
+          items.push({
+            nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (${offlineDetails.colorMode})`,
+            harga_satuan: harga,
+            jumlah: (parseInt(offlineDetails.totalPages) || 1) * copies
+          })
+        }
+
+        if (offlineDetails.bindingType !== 'Tidak Ada') {
+          const type = offlineDetails.bindingType.toLowerCase().split(' ')[0]
+          items.push({
+            nama_barang: `Jilid ${offlineDetails.bindingType}`,
+            harga_satuan: parseInt(priceList?.[`harga_jilid_${type}`]) || 0,
+            jumlah: copies
+          })
+        }
+      } else if (isFotokopi) {
+        items.push({
+          nama_barang: `Fotokopi ${offlineDetails.paperSize}`,
+          harga_satuan: parseInt(priceList?.[`harga_fotokopi_${kertas}`]) || 0,
+          jumlah: (parseInt(offlineDetails.totalPages) || 1) * copies
+        })
+      } else if (isLaminating) {
+        items.push({
+          nama_barang: `Laminating ${offlineDetails.paperSize}`,
+          harga_satuan: parseInt(priceList?.[`harga_laminating_${kertas}`]) || 0,
+          jumlah: (parseInt(offlineDetails.totalPages) || 1) * copies
+        })
+      } else if (isScan) {
+        items.push({
+          nama_barang: `Scan`,
+          harga_satuan: parseInt(priceList?.['harga_scan']) || 0,
+          jumlah: (parseInt(offlineDetails.totalPages) || 1) * copies
+        })
+      } else if (isJilid) {
+        const type = offlineDetails.bindingType.toLowerCase().split(' ')[0]
+        items.push({
+          nama_barang: `Jilid ${offlineDetails.bindingType}`,
+          harga_satuan: parseInt(priceList?.[`harga_jilid_${type}`]) || 0,
+          jumlah: copies
+        })
       }
 
-      if(offlineDetails.bindingType !== 'Tidak Ada') {
-         items.push({ nama_barang: `Jilid ${offlineDetails.bindingType}`, harga_satuan: 0, jumlah: copies })
-      }
-
-      const totalHarga = hitungTotal(); 
+      const totalHarga = hitungTotal()
 
       const payload = {
         nama_lengkap: offlineForm.name,
@@ -222,12 +270,12 @@ export default function Pesanan({ dark }) {
         mode_pesanan: 'OFFLINE',
         items,
         catatan_pesanan: offlineForm.notes,
-        nilai_pesanan: totalHarga 
+        nilai_pesanan: totalHarga
       }
 
       const res = await ordersAPI.createPublic(payload)
       if (res.success) {
-        setSubmitSuccess('Pesanan Offline Berhasil Disimpan!')
+        setSubmitSuccess('Pesanan Berhasil Disimpan!')
         setTimeout(() => setSubmitSuccess(''), 3000)
         setOfflineForm({ name: '', phone: '', service: null, notes: '' })
         setOfflineDetails({ copies: 1, totalPages: 1, paperSize: 'A4', colorMode: 'Hitam Putih', bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0 })
@@ -248,7 +296,7 @@ export default function Pesanan({ dark }) {
     <>
       <div className="flex gap-2 mb-6">
          <button onClick={() => setActiveTab('list')} className={`px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium ${activeTab === 'list' ? 'bg-olaTosca text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}><List size={18}/> Daftar Pesanan</button>
-         <button onClick={() => setActiveTab('input')} className={`px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium ${activeTab === 'input' ? 'bg-olaTosca text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}><PlusCircle size={18}/> Kasir Offline</button>
+         <button onClick={() => setActiveTab('input')} className={`px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium ${activeTab === 'input' ? 'bg-olaTosca text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}><PlusCircle size={18}/> Kasir </button>
       </div>
 
       {activeTab === 'list' && (
@@ -321,22 +369,39 @@ export default function Pesanan({ dark }) {
                     {expandedOrderId === o.id && (
                       <tr className={`${dark ? 'bg-black/20' : 'bg-gray-50'}`}>
                         <td colSpan="8" className="p-4 pl-12">
-                           <div className={`p-4 rounded-lg border text-sm max-w-2xl ${dark ? 'border-white/10 bg-slate-800' : 'border-gray-200 bg-white'}`}>
-                              <h4 className="font-bold text-xs uppercase opacity-50 mb-2">Rincian Barang:</h4>
-                              <ul className="space-y-1 mb-3">
-                                {o.barangTerbeli?.map((item, idx) => (
-                                  <li key={idx} className="flex justify-between border-b border-dashed border-gray-100 last:border-0 pb-1">
-                                    <span>{item.nama_barang}</span>
-                                    <span className="font-mono bg-gray-100 px-1 rounded text-gray-600 text-xs">x{item.jumlah}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {o.catatan_pesanan && (
-                                <div className="text-xs italic opacity-70 border-t pt-2">
-                                  <span className="font-semibold">Catatan:</span> "{o.catatan_pesanan}"
+                          <div className={`p-4 rounded-lg border text-sm max-w-2xl ${dark ? 'border-white/10 bg-slate-800' : 'border-gray-200 bg-white'}`}>
+                            <h4 className="font-bold text-xs uppercase opacity-50 mb-2">Rincian Pesanan:</h4>
+                            {o.barangTerbeli && o.barangTerbeli.length > 0 ? (
+                              <>
+                                <ul className="space-y-1.5 mb-2">
+                                  {o.barangTerbeli.map((item, idx) => (
+                                    <li key={idx} className="flex justify-between border-b border-dashed border-gray-100 last:border-0 pb-1">
+                                      <span>{item.nama_barang} <span className="text-gray-400">x{item.jumlah}</span></span>
+                                      <span className="font-mono text-xs text-gray-600">
+                                        {item.harga_satuan > 0
+                                          ? `Rp ${(item.harga_satuan * item.jumlah).toLocaleString('id-ID')}`
+                                          : '-'
+                                        }
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <div className="flex justify-between text-xs text-gray-400 pt-1">
+                                  <span>Subtotal</span>
+                                  <span className="font-bold text-gray-600">
+                                    Rp {o.barangTerbeli.reduce((sum, item) => sum + (item.harga_satuan * item.jumlah), 0).toLocaleString('id-ID')}
+                                  </span>
                                 </div>
-                              )}
-                           </div>
+                              </>
+                            ) : (
+                              <p className="text-xs opacity-50">Tidak ada rincian item.</p>
+                            )}
+                            {o.catatan_pesanan && (
+                              <div className="text-xs italic opacity-70 border-t pt-2 mt-2">
+                                <span className="font-semibold">Catatan:</span> "{o.catatan_pesanan}"
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -351,7 +416,7 @@ export default function Pesanan({ dark }) {
 
       {/* === TAB 2: INPUT KASIR === */}
       {activeTab === 'input' && (
-        <Section dark={dark} title="Input Pesanan Offline (Kasir)">
+        <Section dark={dark} title="Input Pesanan Langsung">
            <div className={`max-w-3xl mx-auto p-6 rounded-xl border ${dark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100 shadow-sm'}`}>
              
              {submitSuccess && (

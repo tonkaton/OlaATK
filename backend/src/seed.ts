@@ -188,7 +188,7 @@ async function seed() {
 
   await prisma.dataLayanan.createMany({
     data: [{
-      nama: "Cetak Dokumen",
+      nama: "Print",
       deskripsi: "PDF, DOCX — A4/A3 — B/W & Warna",
       nama_icon: "printer",
       status_layanan: true,
