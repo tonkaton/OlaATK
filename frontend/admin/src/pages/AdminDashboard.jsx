@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Topbar from '../components/Topbar'
 import useTheme from '../hooks/useTheme'
+
+// Pages
 import Dashboard from './Dashboard'
 import Produk from './Produk'
 import Pesanan from './Pesanan'
@@ -14,60 +16,65 @@ import Pengaturan from './Pengaturan'
 export default function AdminDashboard() {
   const location = useLocation()
   const { dark, setDark } = useTheme()
-  const [profileOpen, setProfileOpen] = React.useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+  
+  // States
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false) // Wajib ada buat Sidebar baru
+  
   const profileRef = useRef(null)
 
-  // Apply dark class to html element for shadcn CSS variables
+  // Sync Dark Mode
   useEffect(() => {
-    if (dark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    document.documentElement.classList.toggle('dark', dark)
   }, [dark])
 
+  // Close profile on click outside
   useEffect(() => {
     const close = e => {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false)
     }
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
+    document.addEventListener('mousedown', close) // mousedown lebih responsif
+    return () => document.removeEventListener('mousedown', close)
   }, [])
 
+  // Auto close mobile menu on navigation
   useEffect(() => { setMobileMenuOpen(false) }, [location.pathname])
 
   const getActiveKey = (pathname) => {
-    if (pathname === '/') return 'dashboard'
-    if (pathname.includes('produk')) return 'produk'
-    if (pathname.includes('pesanan')) return 'pesanan'
-    if (pathname.includes('akun-pelanggan')) return 'akun-pelanggan'
-    if (pathname.includes('pengguna')) return 'pengguna'
-    if (pathname.includes('layanan')) return 'layanan'
-    if (pathname.includes('pengaturan')) return 'pengaturan'
-    return 'dashboard'
+    const segment = pathname.split('/').filter(Boolean).pop() || 'dashboard'
+    return segment === 'admin' ? 'dashboard' : segment
   }
 
   const renderContent = () => {
     const p = location.pathname
-    if (p === '/') return <Dashboard dark={dark} />
-    if (p.includes('produk')) return <Produk dark={dark} />
-    if (p.includes('pesanan')) return <Pesanan dark={dark} />
-    if (p.includes('akun-pelanggan')) return <AkunPelanggan dark={dark} />
-    if (p.includes('pengguna')) return <Pengguna dark={dark} />
-    if (p.includes('layanan')) return <Layanan dark={dark} />
-    if (p.includes('pengaturan')) return <Pengaturan dark={dark} />
-    return <Dashboard dark={dark} />
+    // Enterprise style: Mapping routes biar gak kebanyakan IF
+    const routes = {
+      '/': <Dashboard dark={dark} />,
+      '/produk': <Produk dark={dark} />,
+      '/pesanan': <Pesanan dark={dark} />,
+      '/akun-pelanggan': <AkunPelanggan dark={dark} />,
+      '/pengguna': <Pengguna dark={dark} />,
+      '/layanan': <Layanan dark={dark} />,
+      '/pengaturan': <Pengaturan dark={dark} />,
+    }
+    
+    // Logic pencarian route yang cocok
+    const activeRoute = Object.keys(routes).find(route => p.endsWith(route)) || '/'
+    return routes[activeRoute]
   }
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
+    <div className="min-h-screen flex bg-background text-foreground transition-colors duration-300">
       <Sidebar
         dark={dark}
         activeKey={getActiveKey(location.pathname)}
         mobileOpen={mobileMenuOpen}
         setMobileOpen={setMobileMenuOpen}
+        isCollapsed={isCollapsed}        // Sinkronisasi Fitur Collapse
+        setIsCollapsed={setIsCollapsed}  // Sinkronisasi Fitur Collapse
       />
+      
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         <Topbar
           dark={dark}
@@ -77,8 +84,11 @@ export default function AdminDashboard() {
           profileRef={profileRef}
           onMenuClick={() => setMobileMenuOpen(true)}
         />
-        <main className="flex-1 p-4 md:p-6 overflow-x-auto">
-          {renderContent()}
+        
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <div className="max-w-[1600px] mx-auto">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>

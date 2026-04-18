@@ -24,11 +24,11 @@ const StatusBadge = ({ status }) => {
 const PaymentBadge = ({ status }) => {
   if (!status) return null
   const config = {
-    'pending':    { cls: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20', label: '⏳ Pending' },
-    'settlement': { cls: 'bg-olaTosca/10 text-olaTosca border-olaTosca/20',       label: '✅ Lunas' },
-    'cancel':     { cls: 'bg-destructive/10 text-destructive border-destructive/20', label: '❌ Cancel' },
-    'deny':       { cls: 'bg-destructive/10 text-destructive border-destructive/20', label: '❌ Ditolak' },
-    'expire':     { cls: 'bg-muted text-muted-foreground border-border',            label: '⌛ Expire' },
+    'pending':    { cls: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20', label: 'Pending' },
+    'settlement': { cls: 'bg-olaTosca/10 text-olaTosca border-olaTosca/20',       label: 'Lunas' },
+    'cancel':     { cls: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Cancel' },
+    'deny':       { cls: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Ditolak' },
+    'expire':     { cls: 'bg-muted text-muted-foreground border-border',            label: 'Expire' },
   }
   const c = config[status] || { cls: 'bg-muted text-muted-foreground border-border', label: status }
   return <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold border', c.cls)}>{c.label}</span>
@@ -347,16 +347,16 @@ export default function Pesanan({ dark }) {
                           </td>
                           <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => setExpandedOrderId(expandedOrderId === o.id ? null : o.id)} className="p-1 rounded hover:bg-accent text-muted-foreground transition">
-                                {expandedOrderId === o.id ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
-                              </button>
+                            <div className="flex items-center gap-3 justify-between">
                               <select value={o.status} onChange={e => handleStatusChange(o.id, e.target.value)} className="text-xs px-2 py-1 bg-background border border-border rounded-lg text-foreground cursor-pointer focus:outline-none">
                                 <option value="MENUNGGU">MENUNGGU</option>
                                 <option value="DIPROSES">DIPROSES</option>
                                 <option value="SELESAI">SELESAI</option>
                                 <option value="BATAL">BATAL</option>
                               </select>
+                              <button onClick={() => setExpandedOrderId(expandedOrderId === o.id ? null : o.id)} className="p-1 rounded hover:bg-accent text-muted-foreground transition flex-shrink-0">
+                                {expandedOrderId === o.id ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                              </button>
                             </div>
                           </td>
                         </tr>
