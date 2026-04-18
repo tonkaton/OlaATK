@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LogIn, Lock, User, Zap } from 'lucide-react'
+import { LogIn, Lock, User, Zap, Eye, EyeOff } from 'lucide-react'
 import useForm from '../hooks/useForm'
 import { authAPI } from '../services/api'
 import { APP_CONFIG } from '../config/constants'
@@ -11,6 +11,7 @@ export default function AdminLogin() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const { values, errors, handleChange, handleSubmit } = useForm(
     { username: '', password: '' },
@@ -67,7 +68,7 @@ export default function AdminLogin() {
           </div>
 
           <h1 className="text-2xl font-bold text-foreground mb-1">Selamat datang</h1>
-          <p className="text-sm text-muted-foreground mb-6">Masuk ke dashboard admin</p>
+          <p className="text-sm text-muted-foreground mb-6">Masuk ke OLA ATK Dashboard</p>
 
           {error && (
             <motion.div
@@ -103,14 +104,23 @@ export default function AdminLogin() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={values.password}
                   onChange={handleChange}
                   disabled={loading}
                   required
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 focus:border-olaTosca/60 transition"
+                  className="w-full pl-9 pr-10 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 focus:border-olaTosca/60 transition"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
