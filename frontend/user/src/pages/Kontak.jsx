@@ -1,8 +1,9 @@
-/* Contact Page - Compact Split Layout (IG Version) */
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Phone, Instagram, MapPin, Clock, ExternalLink } from 'lucide-react'
+import { Icon } from '@iconify/react'
 import { useConfig } from '../contexts/ConfigContext'
+import Card from '../components/Card'
+import Button from '../components/Button'
 
 const container = {
   hidden: { opacity: 0 },
@@ -13,125 +14,186 @@ const container = {
 }
 
 const item = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5 } }
 }
 
 export default function Kontak() {
   const { config } = useConfig()
   
-  // Maps URL Logic
+  // WhatsApp Fallback Logic
+  const waNumber = config.CONTACT_WA || "+62 852-1638-8303"
+  
   const addressQuery = encodeURIComponent(config.CONTACT_ADDRESS || "Jakarta, Indonesia")
-  // Note: Pake q= untuk query search yang bener di embed maps baru
-  const mapUrl = `https://maps.google.com/maps?q=${addressQuery}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+  const mapUrl = `https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}&q=${addressQuery}`
+  // Fallback embed jika API Key tidak ada (pake mode search standar)
+  const embedUrl = `https://maps.google.com/maps?q=${addressQuery}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+
+  const formatWhatsApp = (wa) => {
+    if (!wa) return ''
+    const cleaned = wa.replace(/\D/g, '')
+    return cleaned.startsWith('0') ? '62' + cleaned.slice(1) : cleaned
+  }
 
   return (
-    <div className="pt-24 pb-10 min-h-screen bg-white flex flex-col justify-center">
+    <div className="min-h-screen bg-light pt-32 pb-20">
       
       <motion.div 
         initial="hidden" 
         animate="show" 
         variants={container}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full"
+        className="max-w-[82rem] mx-auto px-6 md:px-12 lg:px-20"
       >
         
-        {/* GRID UTAMA */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-stretch">
-          
-          {/* KOLOM KIRI: Info */}
-          <div className="flex flex-col justify-center space-y-6">
-            
-            <motion.div variants={item} className="text-left">
-              <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight">
-                Hubungi <span className="text-olaBlue">{config.APP_NAME}</span>
-              </h1>
-              <p className="mt-2 text-gray-500">
-                Respon cepat via WA atau DM Instagram. Yuk mampir!
-              </p>
-            </motion.div>
-
-            {/* Grid 2x2 Kartu Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              
-              {/* Phone / WhatsApp */}
-              <motion.div variants={item} className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-olaBlue/30 transition-all">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                    <Phone size={18} />
-                  </div>
-                  <span className="font-bold text-gray-700 text-sm">WhatsApp</span>
-                </div>
-                <div className="font-mono text-gray-900 font-medium truncate">{config.CONTACT_PHONE}</div>
-              </motion.div>
-
-              {/* Instagram (Gantiin Email) */}
-              <motion.a 
-                href={`https://www.instagram.com/${config.CONTACT_INSTAGRAM}/`}
-                target="_blank"
-                rel="noreferrer"
-                variants={item} 
-                className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-pink-300 transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-pink-50 text-pink-600 rounded-lg group-hover:bg-pink-100 transition-colors">
-                    <Instagram size={18} />
-                  </div>
-                  <span className="font-bold text-gray-700 text-sm">Instagram</span>
-                </div>
-                <div className="text-sm text-gray-900 truncate font-medium text-pink-600">
-                  @{config.CONTACT_INSTAGRAM}
-                </div>
-              </motion.a>
-
-              {/* Address */}
-              <motion.div variants={item} className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-olaBlue/30 transition-all sm:col-span-2">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
-                    <MapPin size={18} />
-                  </div>
-                  <span className="font-bold text-gray-700 text-sm">Alamat Toko</span>
-                </div>
-                <p className="text-sm text-gray-600 leading-snug line-clamp-2 hover:line-clamp-none transition-all">
-                  {config.CONTACT_ADDRESS}
-                </p>
-              </motion.div>
-
-              {/* Hours */}
-              <motion.div variants={item} className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-olaBlue/30 transition-all sm:col-span-2">
-                <div className="flex items-center gap-3 mb-2">
-                   <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-                    <Clock size={18} />
-                  </div>
-                  <span className="font-bold text-gray-700 text-sm">Jam Operasional</span>
-                </div>
-                <div className="text-sm text-gray-900">{config.CONTACT_HOURS}</div>
-              </motion.div>
-
+        {/* HEADER */}
+        <motion.div variants={item} className="mb-20">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="border border-border rounded-full px-4 py-1.5">
+              <span className="text-xs uppercase tracking-wider font-medium text-dark">Contact Us</span>
             </div>
+            <div className="h-[1px] bg-border flex-grow"></div>
           </div>
 
-          {/* KOLOM KANAN: Map */}
-          <motion.div variants={item} className="relative h-64 lg:h-auto min-h-[300px] rounded-2xl overflow-hidden shadow-lg border-2 border-white bg-gray-100">
-             <iframe 
-                width="100%" 
-                height="100%" 
-                frameBorder="0" 
-                scrolling="no" 
-                src={mapUrl}
-                title="Lokasi Toko"
-                className="w-full h-full grayscale-[10%] hover:grayscale-0 transition-all duration-500 absolute inset-0"
-              ></iframe>
-              
-              <div className="absolute bottom-4 right-4">
-                <a 
-                  href={`https://maps.google.com/maps?q=${addressQuery}`} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="flex items-center gap-2 bg-white text-gray-800 px-3 py-1.5 rounded-lg shadow-md font-medium text-xs hover:bg-gray-50 transition-colors"
-                >
-                  <ExternalLink size={14}/> Buka Maps
-                </a>
+          <h1 className="font-display text-[2.5rem] md:text-[4.5rem] font-semibold tracking-tighter text-dark leading-[1.1]">
+            Hubungi Kami.
+          </h1>
+          <p className="mt-6 text-lg md:text-xl text-neutral-text max-w-2xl font-normal leading-relaxed">
+            Butuh bantuan cetak kilat atau konsultasi desain? Tim kami siap merespon via kanal di bawah ini.
+          </p>
+        </motion.div>
+
+        {/* GRID LAYOUT */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+          
+          {/* LEFT: Contact Cards */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            {/* WhatsApp Card */}
+            <motion.a
+              href={`https://wa.me/${formatWhatsApp(waNumber)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variants={item}
+              className="block"
+            >
+              <Card hover padding="lg" className="group cursor-pointer border-2 border-transparent hover:border-dark transition-all duration-500">
+                <div className="flex items-start gap-6">
+                  <div className="w-14 h-14 shrink-0 bg-light-gray rounded-2xl flex items-center justify-center text-dark group-hover:bg-dark group-hover:text-white transition-all duration-500 shadow-sm">
+                    <Icon icon="solar:phone-bold" className="text-2xl" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-display text-xl font-medium text-dark tracking-tight">WhatsApp</h3>
+                      <div className="w-8 h-8 rounded-full bg-light-gray flex items-center justify-center group-hover:rotate-45 transition-transform duration-300">
+                        <Icon icon="solar:arrow-right-up-linear" className="text-dark" />
+                      </div>
+                    </div>
+                    <p className="text-neutral-text text-sm mb-3">Respon cepat untuk order & info harga</p>
+                    <span className="font-mono text-dark font-semibold text-sm bg-light-gray px-3 py-1.5 rounded-lg border border-border/40">
+                      {waNumber}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </motion.a>
+
+            {/* Instagram Card */}
+            {config.CONTACT_INSTAGRAM && (
+              <motion.a
+                href={`https://www.instagram.com/${config.CONTACT_INSTAGRAM}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                variants={item}
+                className="block"
+              >
+                <Card hover padding="lg" className="group cursor-pointer border-2 border-transparent hover:border-dark transition-all duration-500">
+                  <div className="flex items-start gap-6">
+                    <div className="w-14 h-14 shrink-0 bg-light-gray rounded-2xl flex items-center justify-center text-dark group-hover:bg-dark group-hover:text-white transition-all duration-500 shadow-sm">
+                      <Icon icon="solar:instagram-bold" className="text-2xl" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-display text-xl font-medium text-dark tracking-tight">Instagram</h3>
+                        <div className="w-8 h-8 rounded-full bg-light-gray flex items-center justify-center group-hover:rotate-45 transition-transform duration-300">
+                          <Icon icon="solar:arrow-right-up-linear" className="text-dark" />
+                        </div>
+                      </div>
+                      <p className="text-neutral-text text-sm mb-3">Update promo & hasil pengerjaan</p>
+                      <span className="font-mono text-dark font-semibold text-sm bg-light-gray px-3 py-1.5 rounded-lg border border-border/40">
+                        @{config.CONTACT_INSTAGRAM}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              </motion.a>
+            )}
+
+            {/* Hours Card */}
+            <motion.div variants={item}>
+              <Card padding="lg" className="border border-border bg-white">
+                <div className="flex items-start gap-6">
+                  <div className="w-14 h-14 shrink-0 bg-light-gray rounded-2xl flex items-center justify-center text-dark">
+                    <Icon icon="solar:clock-circle-bold" className="text-2xl" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-display text-xl font-medium text-dark tracking-tight mb-2">Jam Operasional</h3>
+                    <p className="text-neutral-text text-sm leading-relaxed font-medium">
+                      {config.CONTACT_HOURS || 'Layanan Tersedia 24 Jam'}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+
+          {/* RIGHT: Map Section */}
+          <motion.div variants={item} className="lg:col-span-7 flex flex-col gap-6">
+            <div className="relative group">
+              {/* Address Overlay - MORE PREMIUM */}
+              <div className="absolute top-6 left-6 right-6 z-20 pointer-events-none">
+                <div className="bg-white/90 backdrop-blur-md border border-white p-6 rounded-2xl shadow-xl max-w-sm flex flex-col gap-4 pointer-events-auto transition-all duration-500 group-hover:-translate-y-1">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2 text-dark">
+                      <Icon icon="solar:map-point-bold" className="text-xl" />
+                      <span className="font-display font-bold uppercase tracking-widest text-xs">Lokasi Toko</span>
+                    </div>
+                    <p className="text-dark font-medium text-sm leading-relaxed">
+                      {config.CONTACT_ADDRESS || 'Balaraja, Tangerang, Banten'}
+                    </p>
+                  </div>
+                  <Button
+                    as="a"
+                    href={`https://www.google.com/maps/search/?api=1&query=${addressQuery}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="primary"
+                    size="sm"
+                    className="w-full font-bold tracking-wide"
+                  >
+                    Petunjuk Jalan
+                  </Button>
+                </div>
               </div>
+
+              {/* MONOCHROME MAP */}
+              <div className="relative h-[500px] lg:h-[600px] rounded-[2rem] overflow-hidden border border-border shadow-inner bg-neutral-200">
+                <iframe 
+                  width="100%" 
+                  height="100%" 
+                  frameBorder="0" 
+                  scrolling="no" 
+                  src={embedUrl}
+                  title="Ola ATK Location"
+                  style={{ filter: 'grayscale(100%) contrast(1.2) brightness(0.9) invert(0.05)' }}
+                  className="w-full h-full transition-all duration-1000 group-hover:filter-none opacity-80 group-hover:opacity-100"
+                ></iframe>
+                
+                {/* Bottom Bar Hint */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-dark text-white text-[10px] uppercase tracking-[0.2em] px-6 py-2.5 rounded-full font-bold shadow-2xl opacity-60 group-hover:opacity-100 transition-opacity">
+                  Interactive Map Mode
+                </div>
+              </div>
+            </div>
           </motion.div>
 
         </div>

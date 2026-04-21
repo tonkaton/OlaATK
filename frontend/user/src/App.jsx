@@ -1,9 +1,10 @@
 /* App with routes */
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { ConfigProvider } from './contexts/ConfigContext'
 import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
+import Footer from './components/Footer'
 
 // Import Halaman
 import LandingPage from './pages/LandingPage'
@@ -15,26 +16,32 @@ import Riwayat from './pages/Riwayat'
 import FloatingHistory from './pages/FloatingHistory'
 
 export default function App(){
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
     <AuthProvider>
       <ConfigProvider>
-        <div className="min-h-screen bg-white text-gray-800 font-sans relative">
+        <div className="min-h-screen bg-light text-neutral-text font-sans antialiased relative overflow-x-hidden">
           <Navbar />
           
-          <main className="pt-6 pb-20"> {/* Tambah padding-bottom biar konten paling bawah gak ketutup widget */}
+          <main>
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/services" element={<Services />} />
               <Route path="/kontak" element={<Kontak />} />
               <Route path="/order" element={<Order />} />
               <Route path="/auth" element={<Auth />} />
-              
-              {/* Route ke Halaman Riwayat Lengkap */}
               <Route path="/riwayat" element={<Riwayat />} />
             </Routes>
           </main>
 
           <FloatingHistory />
+          
+          {/* Footer Global (muncul di semua page) */}
+          <Footer />
           
         </div>
       </ConfigProvider>
