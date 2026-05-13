@@ -1,7 +1,10 @@
 {
   "name": "olaatk-frontend",
   "private": true,
-  "workspaces": ["admin", "user"],
+  "workspaces": [
+    "admin",
+    "user"
+  ],
   "scripts": {
     "dev:user": "npm -w user run dev",
     "dev:admin": "npm -w admin run dev",
@@ -11,5 +14,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
+  },
+  "dependencies": {
+    "jspdf": "^4.2.1"
   }
 }

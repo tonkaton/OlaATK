@@ -28,7 +28,7 @@ const PaymentBadge = ({ status }) => {
     'settlement': { cls: 'bg-olaTosca/10 text-olaTosca border-olaTosca/20',       label: 'Lunas' },
     'cancel':     { cls: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Cancel' },
     'deny':       { cls: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Ditolak' },
-    'expire':     { cls: 'bg-muted text-muted-foreground border-border',            label: 'Expire' },
+    'expire':     { cls: 'bg-muted text-muted-foreground border-border',             label: 'Expire' },
   }
   const c = config[status] || { cls: 'bg-muted text-muted-foreground border-border', label: status }
   return <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold border', c.cls)}>{c.label}</span>
@@ -59,6 +59,7 @@ export default function Pesanan({ dark }) {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState('')
   const [serviceError, setServiceError] = useState('')
+  const [kasirBayar, setKasirBayar] = useState('')
 
   // --- STATE JUAL PRODUK ---
   const [products, setProducts] = useState([])
@@ -68,6 +69,7 @@ export default function Pesanan({ dark }) {
   const [produkForm, setProdukForm] = useState({ name: '', phone: '' })
   const [produkSubmitLoading, setProdukSubmitLoading] = useState(false)
   const [produkSuccess, setProdukSuccess] = useState('')
+  const [produkBayar, setProdukBayar] = useState('')
 
   useEffect(() => {
     fetchOrders()
@@ -223,12 +225,24 @@ export default function Pesanan({ dark }) {
         const type = offlineDetails.bindingType.toLowerCase().split(' ')[0]
         items.push({ nama_barang: `Jilid ${offlineDetails.bindingType}`, harga_satuan: parseInt(priceList?.[`harga_jilid_${type}`]) || 0, jumlah: copies })
       }
-      const res = await ordersAPI.createPublic({ nama_lengkap: offlineForm.name, nomor_telepon: offlineForm.phone || '-', alamat: '-', jenis_layanan: offlineForm.service.nama, mode_pesanan: 'OFFLINE', items, catatan_pesanan: offlineForm.notes, nilai_pesanan: hitungTotal() })
+      const res = await ordersAPI.createPublic({ 
+        nama_lengkap: offlineForm.name, 
+        nomor_telepon: offlineForm.phone || '-', 
+        alamat: '-', 
+        jenis_layanan: offlineForm.service.nama, 
+        mode_pesanan: 'OFFLINE', 
+        items, 
+        catatan_pesanan: offlineForm.notes, 
+        nilai_pesanan: hitungTotal(),
+        uang_diterima: kasirBayar ? parseInt(kasirBayar) : null,
+        kembalian: kasirBayar ? parseInt(kasirBayar) - hitungTotal() : null,
+      })
       if (res.success) {
         setSubmitSuccess('Pesanan Berhasil Disimpan!')
         setTimeout(() => setSubmitSuccess(''), 3000)
         setOfflineForm({ name: '', phone: '', service: null, notes: '' })
         setOfflineDetails({ copies: 1, totalPages: 1, paperSize: 'A4', colorMode: 'Hitam Putih', bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0 })
+        setKasirBayar('')
         fetchOrders(); setActiveTab('list')
       }
     } catch (err) { alert('Gagal: ' + (err.message || 'Error')) }
@@ -246,11 +260,14 @@ export default function Pesanan({ dark }) {
         jenis_layanan: 'Penjualan Produk', mode_pesanan: 'OFFLINE',
         items: cart.map(c => ({ stok_barang_id: c.product.id, nama_barang: c.product.nama, harga_satuan: c.product.harga_satuan, jumlah: c.jumlah })),
         nilai_pesanan: totalCart,
+        uang_diterima: produkBayar ? parseInt(produkBayar) : null,
+        kembalian: produkBayar ? parseInt(produkBayar) - totalCart : null,
       })
       if (res.success) {
         setProdukSuccess('Penjualan Berhasil!')
         setTimeout(() => setProdukSuccess(''), 3000)
         setCart([]); setProdukForm({ name: '', phone: '' })
+        setProdukBayar('')
         fetchOrders(); fetchProducts(); setActiveTab('list')
       } else { alert(res.message || 'Gagal') }
     } catch (err) { alert('Error: ' + (err.message || 'Unknown')) }
@@ -527,6 +544,48 @@ export default function Pesanan({ dark }) {
                     <span className="text-xs text-muted-foreground">Estimasi Total</span>
                     <span className="text-2xl font-black text-olaTosca">Rp {hitungTotal().toLocaleString('id-ID')}</span>
                   </div>
+
+                  {/* Patch: Kembalian Kasir */}
+                  {hitungTotal() > 0 && (
+                    <div className="space-y-3 pt-3 border-t border-border">
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...new Set([hitungTotal(), ...[10000,20000,50000,100000].filter(a => a >= hitungTotal())])].sort((a,b) => a-b).slice(0,4).map(amt => (
+                          <button key={amt} type="button" onClick={() => setKasirBayar(String(amt))}
+                            className={cn('px-2.5 py-1 rounded-lg text-xs font-medium border transition',
+                              parseInt(kasirBayar) === amt
+                                ? 'bg-olaTosca text-white border-olaTosca'
+                                : 'bg-background border-border text-muted-foreground hover:text-foreground hover:border-olaTosca/40'
+                            )}>
+                            {amt === hitungTotal() ? 'Pas' : `Rp ${(amt/1000).toFixed(0)}k`}
+                          </button>
+                        ))}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Uang Diterima</label>
+                        <input
+                          type="text" inputMode="numeric"
+                          value={kasirBayar ? `Rp ${parseInt(kasirBayar).toLocaleString('id-ID')}` : ''}
+                          onChange={e => setKasirBayar(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Rp 0" className={inputClass}
+                        />
+                      </div>
+                      {kasirBayar && (
+                        <div className={cn('flex justify-between items-center rounded-lg px-3 py-2.5',
+                          parseInt(kasirBayar) < hitungTotal()
+                            ? 'bg-destructive/10 border border-destructive/20'
+                            : 'bg-olaTosca/10 border border-olaTosca/20'
+                        )}>
+                          <span className="text-xs font-semibold text-muted-foreground">Kembalian</span>
+                          <span className={cn('text-lg font-black',
+                            parseInt(kasirBayar) < hitungTotal() ? 'text-destructive' : 'text-olaTosca'
+                          )}>
+                            Rp {Math.abs(parseInt(kasirBayar) - hitungTotal()).toLocaleString('id-ID')}
+                            {parseInt(kasirBayar) < hitungTotal() && ' (kurang)'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -622,6 +681,48 @@ export default function Pesanan({ dark }) {
                     <span className="text-xs text-muted-foreground">Total</span>
                     <span className="text-2xl font-black text-olaTosca">Rp {totalCart.toLocaleString('id-ID')}</span>
                   </div>
+
+                  {/* Patch: Kembalian Produk */}
+                  {totalCart > 0 && (
+                    <div className="space-y-3 pt-3 border-t border-border">
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...new Set([totalCart, ...[10000,20000,50000,100000].filter(a => a >= totalCart)])].sort((a,b) => a-b).slice(0,4).map(amt => (
+                          <button key={amt} type="button" onClick={() => setProdukBayar(String(amt))}
+                            className={cn('px-2.5 py-1 rounded-lg text-xs font-medium border transition',
+                              parseInt(produkBayar) === amt
+                                ? 'bg-olaTosca text-white border-olaTosca'
+                                : 'bg-background border-border text-muted-foreground hover:text-foreground hover:border-olaTosca/40'
+                            )}>
+                            {amt === totalCart ? 'Pas' : `Rp ${(amt/1000).toFixed(0)}k`}
+                          </button>
+                        ))}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Uang Diterima</label>
+                        <input
+                          type="text" inputMode="numeric"
+                          value={produkBayar ? `Rp ${parseInt(produkBayar).toLocaleString('id-ID')}` : ''}
+                          onChange={e => setProdukBayar(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Rp 0" className={inputClass}
+                        />
+                      </div>
+                      {produkBayar && (
+                        <div className={cn('flex justify-between items-center rounded-lg px-3 py-2.5',
+                          parseInt(produkBayar) < totalCart
+                            ? 'bg-destructive/10 border border-destructive/20'
+                            : 'bg-olaTosca/10 border border-olaTosca/20'
+                        )}>
+                          <span className="text-xs font-semibold text-muted-foreground">Kembalian</span>
+                          <span className={cn('text-lg font-black',
+                            parseInt(produkBayar) < totalCart ? 'text-destructive' : 'text-olaTosca'
+                          )}>
+                            Rp {Math.abs(parseInt(produkBayar) - totalCart).toLocaleString('id-ID')}
+                            {parseInt(produkBayar) < totalCart && ' (kurang)'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

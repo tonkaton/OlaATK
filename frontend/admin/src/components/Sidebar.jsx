@@ -1,16 +1,17 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LayoutDashboard, Package, ClipboardList, Users, Settings, UserCog, Wrench, X, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Users, Settings, UserCog, Wrench, X, Zap, ChevronLeft, ChevronRight, Store } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { APP_CONFIG } from '../config/constants'
 import { cn } from '@/lib/utils'
 
-const iconMap = { LayoutDashboard, Package, ClipboardList, Users, UserCog, Wrench, Settings }
+const iconMap = { LayoutDashboard, Package, ClipboardList, Users, UserCog, Wrench, Settings, Store }
 
 const sidebarItems = [
   { key: "dashboard", label: "Dashboard", icon: "LayoutDashboard", to: "/" },
   { key: "produk", label: "Produk", icon: "Package", to: "/produk" },
   { key: "pesanan", label: "Pesanan", icon: "ClipboardList", to: "/pesanan" },
+  { key: "point-of-sales", label: "Point of Sales", icon: "Store", to: "/point-of-sales" },
   { key: "pengguna", label: "Pengguna", icon: "Users", to: "/pengguna" },
   { key: "akun-pelanggan", label: "Akun Pelanggan", icon: "UserCog", to: "/akun-pelanggan" },
   { key: "layanan", label: "Layanan", icon: "Wrench", to: "/layanan" },

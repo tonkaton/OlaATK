@@ -85,8 +85,8 @@ export const servicesAPI = {
 
 // Orders API (Pesanan) - UPGRADED: getTodayCount support mode
 export const ordersAPI = {
-  getAll: async (page = 1, search = '', status = '') => {
-    const params = { page, limit: 10 }
+  getAll: async (page = 1, search = '', status = '', limit = 10) => {
+    const params = { page, limit }
     if (search) params.search = search
     if (status) params.status = status
     const response = await api.get('/pesanan', { params })
@@ -213,8 +213,18 @@ export const accountsAPI = {
 
 // Stats API
 export const statsAPI = {
-  getDashboard: async () => {
-    const response = await api.get('/stats/dashboard')
+  getDashboard: async (period = '7d') => {
+    const response = await api.get('/stats/dashboard', { params: { period } })
+    return response.data.data || response.data
+  },
+  getTopProducts: async (period = '30d', limit = 10, onlyProducts = false) => {
+    const response = await api.get('/stats/top-products', { 
+      params: { period, limit, ...(onlyProducts && { only_products: 'true' }) } 
+    })
+    return response.data.data || response.data
+  },
+  getCalendar: async (year, month) => {
+    const response = await api.get('/stats/calendar', { params: { year, month } })
     return response.data.data || response.data
   },
 }

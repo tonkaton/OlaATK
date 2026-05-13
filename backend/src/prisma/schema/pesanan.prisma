@@ -20,6 +20,8 @@ model Pesanan {
   nama_file         String?
   catatan_pesanan   String?
   nilai_pesanan     Float
+  uang_diterima     Float?
+  kembalian         Float?
 
   status            StatusPesanan   @default(MENUNGGU)
   mode_pesanan      ModePesanan     @default(ONLINE)

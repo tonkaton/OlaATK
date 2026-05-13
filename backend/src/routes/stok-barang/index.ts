@@ -29,13 +29,27 @@ const stokBarangRoutes: RouteDefinitions = {
 				// Get total count for pagination
 				const total = await prisma.stokBarang.count({ where });
 
-				// Get paginated data
-				const stokBarang = await prisma.stokBarang.findMany({
+				// Get paginated data + hitung totalTerjual dari barangTerbeli (exclude BATAL)
+				const raw = await prisma.stokBarang.findMany({
 					where,
 					skip,
 					take: limit,
 					orderBy: { created_at: 'desc' },
+					include: {
+						barangTerbeli: {
+							select: { jumlah: true },
+							where: {
+								pesanan: { status: { not: 'BATAL' } },
+							},
+						},
+					},
 				});
+
+				// Map: tambah totalTerjual, buang raw array barangTerbeli dari response
+				const stokBarang = raw.map(({ barangTerbeli, ...item }) => ({
+					...item,
+					totalTerjual: barangTerbeli.reduce((sum, b) => sum + b.jumlah, 0),
+				}));
 
 				return {
 					success: true,

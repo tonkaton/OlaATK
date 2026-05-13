@@ -158,8 +158,7 @@ const pesananRoutes: RouteDefinitions = {
   "/pesanan/public": {
     post: async (req) => {
       try {
-        // [UPDATE] Ambil mode_pesanan dari body
-        const { nama_lengkap, nomor_telepon, alamat, jenis_layanan, nama_file, catatan_pesanan, nilai_pesanan, items, mode_pesanan } = req.body;
+        const { nama_lengkap, nomor_telepon, alamat, jenis_layanan, nama_file, catatan_pesanan, nilai_pesanan, items, mode_pesanan, uang_diterima, kembalian } = req.body;
 
         if (!nama_lengkap || !nomor_telepon || !jenis_layanan) {
           return { success: false, statusCode: 400, message: "Data wajib tidak lengkap" };
@@ -198,8 +197,10 @@ const pesananRoutes: RouteDefinitions = {
               nama_file: nama_file ?? null,
               catatan_pesanan: catatan_pesanan ?? null,
               nilai_pesanan: typeof nilai_pesanan === "number" ? nilai_pesanan : 0,
+              uang_diterima: finalMode === "OFFLINE" && typeof uang_diterima === "number" ? uang_diterima : null,
+              kembalian: finalMode === "OFFLINE" && typeof kembalian === "number" ? kembalian : null,
               status: "MENUNGGU",
-              mode_pesanan: finalMode, // <--- Pakai logic dinamis
+              mode_pesanan: finalMode,
             }
           });
 

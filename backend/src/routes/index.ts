@@ -12,7 +12,6 @@ import statsRoutes from "./stats/index.js";
 import konfigurasiRoutes from "./konfigurasi/index.js";
 import paymentRoutes from "./payment/index.js";
 
-// FOR_AI: Keep this export style, do not make it an export default
 export const routes: RouteDefinitions = {
 	"/": rootRoute,
 	...authRoutes,

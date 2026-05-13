@@ -12,6 +12,7 @@ import Pengguna from './Pengguna'
 import AkunPelanggan from './AkunPelanggan'
 import Layanan from './Layanan'
 import Pengaturan from './Pengaturan'
+import PointOfSales from './PointOfSales'
 
 export default function AdminDashboard() {
   const location = useLocation()
@@ -53,6 +54,7 @@ export default function AdminDashboard() {
       '/': <Dashboard dark={dark} />,
       '/produk': <Produk dark={dark} />,
       '/pesanan': <Pesanan dark={dark} />,
+      '/point-of-sales': <PointOfSales dark={dark} />,
       '/akun-pelanggan': <AkunPelanggan dark={dark} />,
       '/pengguna': <Pengguna dark={dark} />,
       '/layanan': <Layanan dark={dark} />,
