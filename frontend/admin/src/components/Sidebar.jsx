@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LayoutDashboard, Package, ClipboardList, Users, Settings, UserCog, Wrench, X, Zap, ChevronLeft, ChevronRight, Store } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Users, Settings, UserCog, Wrench, X, ChevronLeft, ChevronRight, Store } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { APP_CONFIG } from '../config/constants'
 import { cn } from '@/lib/utils'
@@ -23,9 +23,13 @@ function SidebarContent({ activeKey, setMobileOpen, isCollapsed }) {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo Section */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-border min-h-[73px]">
-        <div className="w-8 h-8 rounded-lg bg-olaTosca/15 border border-olaTosca/30 flex items-center justify-center flex-shrink-0">
-          <Zap className="w-4 h-4 text-olaTosca" />
-        </div>
+        {/* Menggunakan image kustom dari public/logola.png */}
+        <img 
+          src="admin/public/logola.png" 
+          alt="Logo OlaATK" 
+          className="w-8 h-8 object-contain flex-shrink-0" 
+        />
+        
         {!isCollapsed && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-hidden whitespace-nowrap">
             <div className="text-sm font-bold text-foreground">{APP_CONFIG.APP_NAME}</div>

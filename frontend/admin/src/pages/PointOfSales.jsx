@@ -31,7 +31,7 @@ const formatRupiah = (n) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0)
 
 const tabs = [
-  { key: 'grafik',   label: 'Grafik',           icon: BarChart2 },
+  { key: 'grafik',   label: 'Grafik',          icon: BarChart2 },
   { key: 'kalender', label: 'Kalender',          icon: Calendar },
   { key: 'terlaris', label: 'Terlaris',          icon: TrendingUp },
   { key: 'riwayat',  label: 'Riwayat Hari Ini', icon: Clock },
@@ -218,12 +218,40 @@ function TabGrafik() {
       setLoading(true)
       const data = await statsAPI.getDashboard(period)
       setMeta({ periodRevenue: data.periodRevenue || 0, periodOrders: data.periodOrders || 0 })
+      
       const raw = data.salesData || data.weeklySales || []
-      setSalesData(raw.map(item => ({
-        displayLabel: item.displayLabel || item.day,
-        sales:        item.sales,
-        orders:       item.orders,
-      })))
+      
+      setSalesData(raw.map(item => {
+        let label = item.displayLabel || item.day;
+        
+        // Parsing format '2026-W08' menjadi rentang tanggal '16 Feb - 22 Feb'
+        if (typeof label === 'string' && label.includes('-W')) {
+          const [yearStr, weekStr] = label.split('-W');
+          const year = parseInt(yearStr, 10);
+          const week = parseInt(weekStr, 10);
+          
+          // Kalkulasi awal minggu (Senin) berdasarkan ISO week
+          const jan4 = new Date(year, 0, 4);
+          const day = jan4.getDay() || 7;
+          const monday = new Date(year, 0, 4 - day + 1);
+          const startDate = new Date(monday.getTime() + (week - 1) * 7 * 24 * 60 * 60 * 1000);
+          
+          // Akhir minggu (Minggu)
+          const endDate = new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+          
+          const formatOptions = { day: 'numeric', month: 'short' };
+          const startFmt = startDate.toLocaleDateString('id-ID', formatOptions);
+          const endFmt = endDate.toLocaleDateString('id-ID', formatOptions);
+          
+          label = `${startFmt} - ${endFmt}`;
+        }
+
+        return {
+          displayLabel: label,
+          sales:        item.sales,
+          orders:       item.orders,
+        }
+      }))
     } catch (err) { console.error(err) } finally { setLoading(false) }
   }, [period])
 
@@ -292,7 +320,13 @@ function TabGrafik() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis dataKey="displayLabel" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={{ stroke: '#334155' }} tickLine={false} />
+              <XAxis 
+                dataKey="displayLabel" 
+                minTickGap={20} 
+                tick={{ fontSize: 11, fill: '#94a3b8' }} 
+                axisLine={{ stroke: '#334155' }} 
+                tickLine={false} 
+              />
               <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={70} tickFormatter={(v) => `Rp${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<AreaTooltip />} />
               <Area type="monotone" dataKey="sales" stroke="#06C7A7" strokeWidth={2} fill="url(#posGradient)" dot={{ r: 3, fill: '#06C7A7' }} />
