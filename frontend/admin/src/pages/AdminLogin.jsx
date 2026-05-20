@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LogIn, Lock, User, Zap, Eye, EyeOff } from 'lucide-react'
+import { LogIn, Lock, User, Eye, EyeOff } from 'lucide-react'
 import useForm from '../hooks/useForm'
 import { authAPI } from '../services/api'
 import { APP_CONFIG } from '../config/constants'
@@ -58,9 +58,11 @@ export default function AdminLogin() {
         <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-olaTosca/15 border border-olaTosca/30 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-olaTosca" />
-            </div>
+            <img 
+              src="public/logola.png" 
+              alt="Logo OlaATK" 
+              className="w-10 h-10 object-contain drop-shadow-sm" 
+            />
             <div>
               <div className="text-sm font-bold text-foreground">{APP_CONFIG.APP_NAME}</div>
               <div className="text-xs text-muted-foreground">Admin Panel</div>
