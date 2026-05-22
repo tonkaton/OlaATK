@@ -13,6 +13,8 @@ export default function Button({
   iconPosition = 'right',
   className = '',
   disabled = false,
+  as,
+  href,
   ...props 
 }) {
   const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-full font-normal transition-colors duration-200'
@@ -37,15 +39,19 @@ export default function Button({
     disabled && 'cursor-not-allowed',
     className
   )
-  
+
+  const isLink = as === 'a' || !!href
+  const MotionComponent = isLink ? motion.a : motion.button
+
   return (
-    <motion.button
+    <MotionComponent
       whileHover={!disabled ? { scale: 1.02 } : {}}
       whileTap={!disabled ? { scale: 0.98 } : {}}
-      type={type}
+      type={isLink ? undefined : type}
       onClick={onClick}
       className={classes}
-      disabled={disabled}
+      disabled={isLink ? undefined : disabled}
+      href={href}
       {...props}
     >
       {icon && iconPosition === 'left' && (
@@ -55,6 +61,6 @@ export default function Button({
       {icon && iconPosition === 'right' && (
         <Icon icon={icon} className="text-lg transition-transform group-hover:translate-x-0.5" />
       )}
-    </motion.button>
+    </MotionComponent>
   )
 }

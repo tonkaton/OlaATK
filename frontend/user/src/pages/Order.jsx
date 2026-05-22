@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Icon } from '@iconify/react'
 import { servicesAPI, uploadAPI, authAPI, paymentAPI } from '../services/api'
@@ -9,16 +9,13 @@ import Textarea from '../components/Textarea'
 import Button from '../components/Button'
 import Card from '../components/Card'
 
-// Import PDFJS (LOGIC TETEP SAMA!)
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export default function Order() {
   const { isAuthenticated, user } = useAuth()
-  const fileInputRef = useRef(null)
 
-  // --- STATE (SEMUA LOGIC SAMA!) ---
   const [contactForm, setContactForm] = useState({ name: '', phone: '', alamat: '' })
   const [selectedService, setSelectedService] = useState(null)
   const [priceList, setPriceList] = useState(null)
@@ -38,6 +35,7 @@ export default function Order() {
   const [uploadedFileName, setUploadedFileName] = useState(null)
   const [fileError, setFileError] = useState('')
   const [isPdf, setIsPdf] = useState(false)
+  const [isImage, setIsImage] = useState(false)
 
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(false)
@@ -54,9 +52,7 @@ export default function Order() {
     script.setAttribute('data-client-key', import.meta.env.VITE_MIDTRANS_CLIENT_KEY || '')
     script.async = true
     document.head.appendChild(script)
-    return () => {
-      document.head.removeChild(script)
-    }
+    return () => { document.head.removeChild(script) }
   }, [])
 
   // Fetch User Data
@@ -86,7 +82,6 @@ export default function Order() {
             service.nama.toLowerCase().includes('cetak') || service.nama.toLowerCase().includes('print')
           )
           setServices(onlineServices)
-          // Logic ini yang bikin kita bisa buang UI Pilih Layanan
           if (onlineServices.length > 0) setSelectedService(onlineServices[0])
         }
       } catch (err) {
@@ -98,7 +93,6 @@ export default function Order() {
     fetchServices()
   }, [])
 
-  // Fetch Prices
   const fetchPrices = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/konfigurasi/public`)
@@ -107,37 +101,67 @@ export default function Order() {
     } catch (error) { console.error("Gagal tarik harga", error) }
   }
 
-  // --- HANDLERS (LOGIC SAMA!) ---
   const handleContactChange = (e) => setContactForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
-
   const handleDetailChange = (key, value) => setOrderDetails(prev => ({ ...prev, [key]: value }))
 
-  // PDF Scanner
+  // PDF / DOCX / Image Scanner
   const handleFile = async (e) => {
     const selectedFile = e.target.files[0]
-    if (selectedFile) {
-      if (selectedFile.size > 20 * 1024 * 1024) {
-        setFileError('Ukuran file maksimal 20MB')
-        return
-      }
-      setFile(selectedFile)
-      setUploadedFileName(null)
-      setFileError('')
+    if (!selectedFile) return
 
-      if (selectedFile.type === 'application/pdf') {
-        setIsPdf(true)
-        try {
-          const arrayBuffer = await selectedFile.arrayBuffer()
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-          setOrderDetails(prev => ({ ...prev, totalPages: pdf.numPages }))
-        } catch (err) {
-          console.error("Gagal scan PDF:", err)
-          setFileError('Gagal membaca PDF. Silakan isi jumlah halaman manual.')
-        }
-      } else {
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setFileError('Ukuran file maksimal 20MB')
+      return
+    }
+
+    setFile(selectedFile)
+    setUploadedFileName(null)
+    setFileError('')
+    setIsPdf(false)
+    setIsImage(false)
+
+    const type = selectedFile.type
+
+    if (type === 'application/pdf') {
+      setIsPdf(true)
+      try {
+        const arrayBuffer = await selectedFile.arrayBuffer()
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+        setOrderDetails(prev => ({ ...prev, totalPages: pdf.numPages }))
+      } catch (err) {
+        console.error('Gagal scan PDF:', err)
+        setFileError('Gagal membaca PDF. Silakan isi jumlah halaman manual.')
         setIsPdf(false)
       }
+      return
     }
+
+    if (type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      try {
+        const JSZip = (await import('jszip')).default
+        const zip = await JSZip.loadAsync(selectedFile)
+        const appXml = await zip.file('docProps/app.xml')?.async('text')
+        if (appXml) {
+          const match = appXml.match(/<Pages>(\d+)<\/Pages>/)
+          if (match) {
+            setOrderDetails(prev => ({ ...prev, totalPages: parseInt(match[1]) }))
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Gagal scan DOCX:', err)
+      }
+      setOrderDetails(prev => ({ ...prev, totalPages: 1 }))
+      return
+    }
+
+    if (type === 'image/jpeg' || type === 'image/png') {
+      setIsImage(true)
+      setOrderDetails(prev => ({ ...prev, totalPages: 1 }))
+      return
+    }
+
+    setOrderDetails(prev => ({ ...prev, totalPages: 1 }))
   }
 
   const uploadFile = async () => {
@@ -155,7 +179,7 @@ export default function Order() {
     } finally { setUploading(false) }
   }
 
-  // Smart Calculator
+  // Display only — source of truth ada di backend
   const hitungTotal = () => {
     if (!priceList || !selectedService) return 0
 
@@ -187,71 +211,16 @@ export default function Order() {
     return totalPerBundel * copies
   }
 
-  const generateOrderItems = () => {
-    const items = []
-    const sName = selectedService?.nama || ''
-    const copies = parseInt(orderDetails.copies) || 1
-    const kertas = orderDetails.paperSize.toLowerCase()
-  
-    if (sName.toLowerCase().includes('cetak') || sName.toLowerCase().includes('print')) {
-      const hargaBw = parseInt(priceList?.[`harga_cetak_${kertas}_bw`]) || 0
-      const hargaWarna = parseInt(priceList?.[`harga_cetak_${kertas}_color`]) || 0
-  
-      if (orderDetails.colorMode === 'Campur') {
-        if (orderDetails.bwPages > 0) items.push({
-          nama_barang: `Cetak ${orderDetails.paperSize} (Hitam Putih)`,
-          harga_satuan: hargaBw,
-          jumlah: parseInt(orderDetails.bwPages) * copies
-        })
-        if (orderDetails.colorPages > 0) items.push({
-          nama_barang: `Cetak ${orderDetails.paperSize} (Berwarna)`,
-          harga_satuan: hargaWarna,
-          jumlah: parseInt(orderDetails.colorPages) * copies
-        })
-      } else {
-        const harga = orderDetails.colorMode === 'Berwarna' ? hargaWarna : hargaBw
-        items.push({
-          nama_barang: `Cetak ${orderDetails.paperSize} (${orderDetails.colorMode})`,
-          harga_satuan: harga,
-          jumlah: (parseInt(orderDetails.totalPages) || 1) * copies
-        })
-      }
-  
-      if (orderDetails.bindingType !== 'Tidak Ada') {
-        const type = orderDetails.bindingType.toLowerCase().split(' ')[0]
-        const hargaJilid = parseInt(priceList?.[`harga_jilid_${type}`]) || 0
-        items.push({
-          nama_barang: `Jilid ${orderDetails.bindingType}`,
-          harga_satuan: hargaJilid,
-          jumlah: copies
-        })
-      }
-    } else if (sName.toLowerCase().includes('jilid')) {
-      const type = orderDetails.bindingType.toLowerCase().split(' ')[0]
-      const hargaJilid = parseInt(priceList?.[`harga_jilid_${type}`]) || 0
-      items.push({
-        nama_barang: `Jilid ${orderDetails.bindingType}`,
-        harga_satuan: hargaJilid,
-        jumlah: copies
-      })
-    } else {
-      items.push({
-        nama_barang: sName,
-        harga_satuan: parseInt(priceList?.[`harga_${sName.toLowerCase()}`]) || 0,
-        jumlah: copies
-      })
-    }
-  
-    return items
-  }
-
   const resetForm = () => {
     if (!user) setContactForm({ name: '', phone: '', alamat: '' })
-    setFile(null); setUploadedFileName(null); setIsPdf(false); setNote('')
+    setFile(null)
+    setUploadedFileName(null)
+    setIsPdf(false)
+    setIsImage(false)
+    setNote('')
     setOrderDetails({ paperSize: 'A4', colorMode: 'Hitam Putih', copies: 1, totalPages: 1, bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0 })
   }
 
-  // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -263,8 +232,9 @@ export default function Order() {
       if (orderDetails.bwPages <= 0 && orderDetails.colorPages <= 0) return setError('Mohon isi jumlah halaman Hitam Putih atau Berwarna')
     }
 
-    const totalHarga = hitungTotal()
-    if (totalHarga <= 0) return setError('Total harga tidak valid. Pastikan detail pesanan sudah diisi.')
+    // Client-side sanity check (display only, bukan source of truth)
+    const totalHargaUI = hitungTotal()
+    if (totalHargaUI <= 0) return setError('Total harga tidak valid. Pastikan detail pesanan sudah diisi.')
 
     try {
       setLoading(true)
@@ -275,8 +245,6 @@ export default function Order() {
         catch (uErr) { return setError('Gagal upload file. Cek koneksi internet.') }
       }
 
-      const itemsPayload = generateOrderItems()
-
       const tokenResponse = await paymentAPI.createToken({
         nama_lengkap: contactForm.name,
         nomor_telepon: contactForm.phone,
@@ -284,9 +252,16 @@ export default function Order() {
         jenis_layanan: selectedService.nama,
         nama_file: finalFileName || null,
         catatan_pesanan: note || null,
-        nilai_pesanan: totalHarga,
-        items: itemsPayload,
         mode_pesanan: 'ONLINE',
+        specs: {
+          paperSize: orderDetails.paperSize,
+          colorMode: orderDetails.colorMode,
+          totalPages: orderDetails.totalPages,
+          copies: orderDetails.copies,
+          bindingType: orderDetails.bindingType,
+          bwPages: orderDetails.bwPages,
+          colorPages: orderDetails.colorPages,
+        }
       })
 
       if (!tokenResponse.success) {
@@ -340,7 +315,6 @@ export default function Order() {
     <div className="min-h-screen bg-light pt-32 pb-20">
       <div className="max-w-[56rem] mx-auto px-6 md:px-12">
 
-        {/* HEADER - NEW STYLE */}
         <div className="mb-16">
           <div className="flex items-center gap-4 mb-8">
             <div className="border border-border rounded-full px-4 py-1.5">
@@ -348,7 +322,6 @@ export default function Order() {
             </div>
             <div className="h-[1px] bg-border flex-grow"></div>
           </div>
-
           <h1 className="font-display text-[2.5rem] md:text-[4.5rem] font-semibold tracking-tighter text-dark leading-[1.1]">
             Buat Pesanan.
           </h1>
@@ -359,10 +332,9 @@ export default function Order() {
 
         <form onSubmit={handleSubmit} className="space-y-12">
 
-          {/* STEP 1: DATA PEMESAN */}
           <div>
             <h2 className="font-display text-2xl font-medium mb-6 flex items-center gap-4 text-dark">
-              <span className="w-8 h-8 rounded-full border border-dark flex items-center justify-center text-sm font-semibold">1</span> 
+              <span className="w-8 h-8 rounded-full border border-dark flex items-center justify-center text-sm font-semibold">1</span>
               Identitas & Pengiriman
             </h2>
             <Card padding="lg" className="border border-border">
@@ -402,39 +374,35 @@ export default function Order() {
             </Card>
           </div>
 
-          {/* STEP 2: DETAIL PESANAN */}
           {selectedService && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }} 
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
               <h2 className="font-display text-2xl font-medium mb-6 flex items-center gap-4 text-dark">
-                <span className="w-8 h-8 rounded-full border border-dark flex items-center justify-center text-sm font-semibold">2</span> 
+                <span className="w-8 h-8 rounded-full border border-dark flex items-center justify-center text-sm font-semibold">2</span>
                 Spesifikasi Dokumen
               </h2>
               <Card padding="lg" className="border border-border space-y-8">
-                
-                {/* File Upload - Refined Style */}
+
                 <div className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-300 ${
-                  file 
-                    ? 'border-dark bg-dark/5' 
-                    : 'border-border hover:border-dark hover:bg-light-gray'
+                  file ? 'border-dark bg-dark/5' : 'border-border hover:border-dark hover:bg-light-gray'
                 }`}>
-                  <input 
-                    type="file" 
-                    id="fileUpload" 
-                    onChange={handleFile} 
-                    className="hidden" 
-                    accept=".pdf,.doc,.docx,.jpg,.png" 
+                  <input
+                    type="file"
+                    id="fileUpload"
+                    onChange={handleFile}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.jpg,.png"
                   />
                   <label htmlFor="fileUpload" className="cursor-pointer flex flex-col items-center">
                     {file ? (
                       <>
                         <Icon icon="solar:document-bold" className="text-dark mb-4 text-5xl" />
                         <span className="text-dark font-semibold text-lg truncate max-w-sm">{file.name}</span>
-                        {isPdf && (
+                        {(isPdf || isImage) && (
                           <span className="text-xs text-dark font-medium bg-white border border-border px-4 py-1.5 rounded-full mt-4 shadow-sm">
-                            Terdeteksi {orderDetails.totalPages} Halaman
+                            {isImage ? '1 Halaman (Gambar)' : `Terdeteksi ${orderDetails.totalPages} Halaman`}
                           </span>
                         )}
                         <span className="text-sm text-neutral-text mt-4 underline decoration-neutral-light underline-offset-4">Ganti dokumen</span>
@@ -459,7 +427,6 @@ export default function Order() {
                   )}
                 </div>
 
-                {/* Total Pages (If not mixed mode) */}
                 {orderDetails.colorMode !== 'Campur' && (
                   <div className="bg-light-gray border border-border p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
@@ -467,37 +434,37 @@ export default function Order() {
                         Total Halaman Dokumen
                       </label>
                       <p className="text-sm text-neutral-text">
-                        Otomatis terisi jika upload PDF. Sesuaikan jika salah.
+                        Otomatis terisi jika upload PDF/Image. Sesuaikan jika salah.
                       </p>
                     </div>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      value={orderDetails.totalPages} 
-                      onChange={e => handleDetailChange('totalPages', e.target.value)} 
-                      disabled={isPdf} 
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={orderDetails.totalPages}
+                      onChange={e => handleDetailChange('totalPages', e.target.value)}
+                      disabled={isPdf || isImage}
                       className={`w-full md:w-32 p-3 text-center text-xl font-bold rounded-xl border transition-colors ${
-                        isPdf 
-                          ? 'bg-transparent text-dark border-transparent cursor-not-allowed' 
+                        (isPdf || isImage)
+                          ? 'bg-transparent text-dark border-transparent cursor-not-allowed'
                           : 'bg-white border-border focus:border-dark focus:ring-1 focus:ring-dark outline-none'
-                      }`} 
+                      }`}
                     />
                   </div>
                 )}
 
-                {/* Paper Size & Color Mode */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>
                     <label className="block text-sm font-semibold text-dark mb-3 uppercase tracking-wider">Ukuran Kertas</label>
                     <div className="flex bg-light-gray p-1.5 rounded-xl border border-border">
                       {['A4', 'F4 (Folio)'].map(size => (
-                        <button 
-                          key={size} 
-                          type="button" 
-                          onClick={() => handleDetailChange('paperSize', size.split(' ')[0])} 
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => handleDetailChange('paperSize', size.split(' ')[0])}
                           className={`flex-1 py-3 text-sm rounded-lg transition-all ${
-                            orderDetails.paperSize === size.split(' ')[0] 
-                              ? 'bg-white shadow-sm border border-border text-dark font-semibold' 
+                            orderDetails.paperSize === size.split(' ')[0]
+                              ? 'bg-white shadow-sm border border-border text-dark font-semibold'
                               : 'text-neutral-text hover:text-dark font-medium'
                           }`}
                         >
@@ -510,13 +477,13 @@ export default function Order() {
                     <label className="block text-sm font-semibold text-dark mb-3 uppercase tracking-wider">Mode Warna</label>
                     <div className="flex bg-light-gray p-1.5 rounded-xl border border-border">
                       {['Hitam Putih', 'Berwarna', 'Campur'].map(mode => (
-                        <button 
-                          key={mode} 
-                          type="button" 
-                          onClick={() => handleDetailChange('colorMode', mode)} 
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => handleDetailChange('colorMode', mode)}
                           className={`flex-1 py-3 text-sm rounded-lg transition-all ${
-                            orderDetails.colorMode === mode 
-                              ? 'bg-white shadow-sm border border-border text-dark font-semibold' 
+                            orderDetails.colorMode === mode
+                              ? 'bg-white shadow-sm border border-border text-dark font-semibold'
                               : 'text-neutral-text hover:text-dark font-medium'
                           }`}
                         >
@@ -527,12 +494,11 @@ export default function Order() {
                   </div>
                 </div>
 
-                {/* Campur Mode Detail - Neutral Styling */}
                 <AnimatePresence>
                   {orderDetails.colorMode === 'Campur' && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }} 
-                      animate={{ opacity: 1, height: 'auto' }} 
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       className="p-6 bg-light-gray border border-border rounded-2xl overflow-hidden"
                     >
@@ -569,17 +535,16 @@ export default function Order() {
 
                 <hr className="border-border" />
 
-                {/* Binding Type */}
                 <div>
                   <label className="block text-sm font-semibold text-dark mb-4 uppercase tracking-wider">Jilid Sekalian?</label>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {['Tidak Ada', 'Lakban Biasa', 'Softcover', 'Hardcover', 'Spiral'].map(type => (
-                      <div 
-                        key={type} 
-                        onClick={() => handleDetailChange('bindingType', type)} 
+                      <div
+                        key={type}
+                        onClick={() => handleDetailChange('bindingType', type)}
                         className={`cursor-pointer px-4 py-4 border-2 rounded-xl text-sm text-center transition-all flex items-center justify-center ${
-                          orderDetails.bindingType === type 
-                            ? 'border-dark bg-dark text-white font-semibold shadow-md' 
+                          orderDetails.bindingType === type
+                            ? 'border-dark bg-dark text-white font-semibold shadow-md'
                             : 'border-border bg-light-gray text-neutral-text hover:border-dark/30 hover:bg-white'
                         }`}
                       >
@@ -591,33 +556,29 @@ export default function Order() {
 
                 <hr className="border-border" />
 
-                {/* Copies & Notes Container */}
                 <div className="grid md:grid-cols-2 gap-8 items-start">
-                  {/* Copies */}
                   <div>
                     <label className="block text-sm font-semibold text-dark mb-4 uppercase tracking-wider">
                       Jumlah Rangkap (Bundel)
                     </label>
                     <div className="flex items-center gap-6 bg-light-gray p-2 rounded-2xl w-fit border border-border">
-                      <button 
-                        type="button" 
-                        onClick={() => handleDetailChange('copies', Math.max(1, orderDetails.copies - 1))} 
+                      <button
+                        type="button"
+                        onClick={() => handleDetailChange('copies', Math.max(1, orderDetails.copies - 1))}
                         className="w-12 h-12 rounded-xl bg-white border border-border flex items-center justify-center hover:bg-dark hover:text-white hover:border-dark transition-all"
                       >
                         <Icon icon="solar:minus-linear" className="text-xl" />
                       </button>
                       <span className="text-2xl font-bold w-12 text-center text-dark">{orderDetails.copies}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => handleDetailChange('copies', orderDetails.copies + 1)} 
+                      <button
+                        type="button"
+                        onClick={() => handleDetailChange('copies', Math.min(100, orderDetails.copies + 1))}
                         className="w-12 h-12 rounded-xl bg-dark text-white flex items-center justify-center hover:opacity-90 transition-all shadow-md"
                       >
                         <Icon icon="solar:add-linear" className="text-xl" />
                       </button>
                     </div>
                   </div>
-
-                  {/* Notes */}
                   <div>
                     <Textarea
                       label="Catatan (Opsional)"
@@ -629,7 +590,6 @@ export default function Order() {
                   </div>
                 </div>
 
-                {/* Total Price Banner - Premium Look */}
                 <div className="mt-6 pt-6 flex flex-col md:flex-row justify-between items-center bg-dark p-8 rounded-2xl shadow-xl">
                   <div className="mb-4 md:mb-0 text-center md:text-left">
                     <span className="text-sm font-medium text-white/80 block uppercase tracking-wider mb-1">Estimasi Total</span>
@@ -643,13 +603,12 @@ export default function Order() {
             </motion.div>
           )}
 
-          {/* Messages */}
           <AnimatePresence>
             {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.95 }} 
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-red-50 border-l-4 border-red-500 text-red-800 p-5 rounded-r-xl flex items-center gap-4 shadow-sm"
               >
                 <Icon icon="solar:danger-circle-bold" className="text-2xl shrink-0" />
@@ -657,10 +616,10 @@ export default function Order() {
               </motion.div>
             )}
             {success && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.95 }} 
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-green-50 border-l-4 border-green-500 text-green-800 p-5 rounded-r-xl flex items-center gap-4 shadow-sm"
               >
                 <Icon icon="solar:check-circle-bold" className="text-2xl shrink-0" />
@@ -672,7 +631,6 @@ export default function Order() {
             )}
           </AnimatePresence>
 
-          {/* Submit Button */}
           <div className="pt-4">
             <Button
               type="submit"
