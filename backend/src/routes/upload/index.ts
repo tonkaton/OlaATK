@@ -18,7 +18,7 @@ function generateRandomFilename(originalName: string): string {
   return `${timestamp}-${random}${ext}`;
 }
 
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
 const uploadRoutes: RouteDefinitions = {
@@ -32,7 +32,7 @@ const uploadRoutes: RouteDefinitions = {
         }
 
         if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
-          return { success: false, statusCode: 400, message: "Tipe file tidak diizinkan. Hanya PDF, JPG, PNG." };
+          return { success: false, statusCode: 400, message: "Tipe file tidak diizinkan. Hanya PDF, DOC, DOCX, JPG, dan PNG." };
         }
 
         const base64Data = fileData.replace(/^data:([A-Za-z-+\/]+);base64,/, "");
