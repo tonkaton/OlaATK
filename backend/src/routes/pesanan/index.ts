@@ -4,6 +4,11 @@ import { validateDto } from "../../utils/validation.js";
 import { CreatePesananDto, UpdatePesananDto, UpdateStatusPesananDto } from "./dto/pesanan.dto.js";
 import { requireAuth, requireAdmin } from "../../auth/index.js";
 
+function getStockQty(jumlah: number, satuanBeli: string | undefined, stokBarang: { satuan: string | null; isi_per_satuan: number | null }): number {
+  if (!satuanBeli || satuanBeli === (stokBarang.satuan || "PCS") || !stokBarang.isi_per_satuan) return jumlah;
+  return Math.ceil(jumlah / stokBarang.isi_per_satuan);
+}
+
 const pesananRoutes: RouteDefinitions = {
   // ==========================================
   // 1. GET ALL & CREATE (AUTH REQUIRED)
@@ -105,30 +110,31 @@ const pesananRoutes: RouteDefinitions = {
 
           if (dto.items && dto.items.length > 0) {
             for (const item of dto.items) {
-              // Cek apakah item ini produk dari stok_barang
-              const stokBarang = (item as any).stok_barang_id
-                ? await tx.stokBarang.findUnique({ where: { id: (item as any).stok_barang_id } })
+              const itemAny = item as any;
+              const stokBarang = itemAny.stok_barang_id
+                ? await tx.stokBarang.findUnique({ where: { id: itemAny.stok_barang_id } })
                 : null;
 
-              // Validasi stok cukup
+              let stockQty = item.jumlah;
               if (stokBarang) {
-                if (stokBarang.jumlah_stok < item.jumlah) {
+                stockQty = getStockQty(item.jumlah, itemAny.satuan_beli, stokBarang);
+                if (stokBarang.jumlah_stok < stockQty) {
                   throw new Error(`Stok ${stokBarang.nama} tidak cukup. Tersedia: ${stokBarang.jumlah_stok}`);
                 }
-                // Kurangi stok
                 await tx.stokBarang.update({
                   where: { id: stokBarang.id },
-                  data: { jumlah_stok: { decrement: item.jumlah } },
+                  data: { jumlah_stok: { decrement: stockQty } },
                 });
               }
 
               await tx.barangTerbeli.create({
                 data: {
                   id_pesanan: pesanan.id,
-                  stok_barang_id: (item as any).stok_barang_id ?? null,
+                  stok_barang_id: itemAny.stok_barang_id ?? null,
                   nama_barang: item.nama_barang,
                   harga_satuan: item.harga_satuan || 0,
                   jumlah: item.jumlah || 1,
+                  satuan_beli: itemAny.satuan_beli || "PCS",
                 },
               });
             }
@@ -206,20 +212,19 @@ const pesananRoutes: RouteDefinitions = {
 
           if (items && Array.isArray(items) && items.length > 0) {
             for (const item of items) {
-              // Cek apakah item ini produk dari stok_barang
               const stokBarang = item.stok_barang_id
                 ? await tx.stokBarang.findUnique({ where: { id: item.stok_barang_id } })
                 : null;
 
-              // Validasi stok cukup
+              let stockQty = item.jumlah;
               if (stokBarang) {
-                if (stokBarang.jumlah_stok < item.jumlah) {
+                stockQty = getStockQty(item.jumlah, item.satuan_beli, stokBarang);
+                if (stokBarang.jumlah_stok < stockQty) {
                   throw new Error(`Stok ${stokBarang.nama} tidak cukup. Tersedia: ${stokBarang.jumlah_stok}`);
                 }
-                // Kurangi stok
                 await tx.stokBarang.update({
                   where: { id: stokBarang.id },
-                  data: { jumlah_stok: { decrement: item.jumlah } },
+                  data: { jumlah_stok: { decrement: stockQty } },
                 });
               }
 
@@ -230,6 +235,7 @@ const pesananRoutes: RouteDefinitions = {
                   nama_barang: item.nama_barang,
                   harga_satuan: item.harga_satuan || 0,
                   jumlah: item.jumlah || 1,
+                  satuan_beli: item.satuan_beli || "PCS",
                 },
               });
             }
@@ -371,9 +377,13 @@ const pesananRoutes: RouteDefinitions = {
             if (pesanan) {
               for (const item of pesanan.barangTerbeli) {
                 if (item.stok_barang_id) {
+                  const stokBarang = await tx.stokBarang.findUnique({ where: { id: item.stok_barang_id } });
+                  const stockQty = stokBarang
+                    ? getStockQty(item.jumlah, item.satuan_beli, stokBarang)
+                    : item.jumlah;
                   await tx.stokBarang.update({
                     where: { id: item.stok_barang_id },
-                    data: { jumlah_stok: { increment: item.jumlah } },
+                    data: { jumlah_stok: { increment: stockQty } },
                   });
                 }
               }

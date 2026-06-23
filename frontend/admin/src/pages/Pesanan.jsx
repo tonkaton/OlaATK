@@ -119,23 +119,40 @@ export default function Pesanan({ dark }) {
     setCart(prev => {
       const existing = prev.find(c => c.product.id === product.id)
       if (existing) {
-        if (existing.jumlah >= product.jumlah_stok) { alert(`Stok ${product.nama} hanya ${product.jumlah_stok}`); return prev }
+        const maxStok = effectiveStock(existing.product, existing.satuan_beli)
+        if (existing.jumlah >= maxStok) { alert(`Stok ${product.nama} hanya ${maxStok} ${existing.satuan_beli}`); return prev }
         return prev.map(c => c.product.id === product.id ? { ...c, jumlah: c.jumlah + 1 } : c)
       }
-      return [...prev, { product, jumlah: 1 }]
+      return [...prev, { product, jumlah: 1, satuan_beli: product.satuan || "PCS" }]
     })
   }
 
   const removeFromCart = (id) => setCart(prev => prev.filter(c => c.product.id !== id))
 
+  const effectiveStock = (product, satuanBeli) => {
+    if (satuanBeli !== product.satuan && product.isi_per_satuan) return product.jumlah_stok * product.isi_per_satuan
+    return product.jumlah_stok
+  }
+
+  const effectivePrice = (product, satuanBeli) => {
+    if (satuanBeli !== product.satuan && product.isi_per_satuan) return product.harga_satuan / product.isi_per_satuan
+    return product.harga_satuan
+  }
+
+  const updateCartSatuan = (productId, newSatuan) => {
+    setCart(prev => prev.map(c => c.product.id === productId ? { ...c, satuan_beli: newSatuan, jumlah: 1 } : c))
+  }
+
   const updateCartQty = (productId, jumlah) => {
-    const product = products.find(p => p.id === productId)
-    if (jumlah > product?.jumlah_stok) { alert(`Stok hanya ${product.jumlah_stok}`); return }
+    const item = cart.find(c => c.product.id === productId)
+    if (!item) return
+    const maxStok = effectiveStock(item.product, item.satuan_beli)
+    if (jumlah > maxStok) { alert(`Stok hanya ${maxStok} ${item.satuan_beli}`); return }
     if (jumlah <= 0) { removeFromCart(productId); return }
     setCart(prev => prev.map(c => c.product.id === productId ? { ...c, jumlah } : c))
   }
 
-  const totalCart = cart.reduce((sum, c) => sum + c.product.harga_satuan * c.jumlah, 0)
+  const totalCart = cart.reduce((sum, c) => sum + effectivePrice(c.product, c.satuan_beli) * c.jumlah, 0)
 
   const hitungTotal = () => {
     if (!priceList || !offlineForm.service) return 0
@@ -258,7 +275,13 @@ export default function Pesanan({ dark }) {
       const res = await ordersAPI.createPublic({
         nama_lengkap: produkForm.name, nomor_telepon: produkForm.phone || '-', alamat: '-',
         jenis_layanan: 'Penjualan Produk', mode_pesanan: 'OFFLINE',
-        items: cart.map(c => ({ stok_barang_id: c.product.id, nama_barang: c.product.nama, harga_satuan: c.product.harga_satuan, jumlah: c.jumlah })),
+        items: cart.map(c => ({
+          stok_barang_id: c.product.id,
+          nama_barang: c.product.nama,
+          harga_satuan: effectivePrice(c.product, c.satuan_beli),
+          jumlah: c.jumlah,
+          satuan_beli: c.satuan_beli,
+        })),
         nilai_pesanan: totalCart,
         uang_diterima: produkBayar ? parseInt(produkBayar) : null,
         kembalian: produkBayar ? parseInt(produkBayar) - totalCart : null,
@@ -387,7 +410,7 @@ export default function Pesanan({ dark }) {
                                     <ul className="space-y-2 mb-3">
                                       {o.barangTerbeli.map((item, idx) => (
                                         <li key={idx} className="flex justify-between items-center border-b border-dashed border-border last:border-0 pb-2 last:pb-0">
-                                          <span className="text-foreground">{item.nama_barang} <span className="text-muted-foreground">×{item.jumlah}</span></span>
+                                          <span className="text-foreground">{item.nama_barang} <span className="text-muted-foreground">×{item.jumlah} {item.satuan_beli || 'PCS'}</span></span>
                                           <span className="font-medium text-foreground text-xs">
                                             {item.harga_satuan > 0 ? `Rp ${(item.harga_satuan * item.jumlah).toLocaleString('id-ID')}` : '-'}
                                           </span>
@@ -645,10 +668,13 @@ export default function Pesanan({ dark }) {
                               className="w-full px-4 py-2.5 text-left text-sm hover:bg-accent flex justify-between items-center border-b border-border last:border-0 transition">
                               <div>
                                 <div className="font-medium text-foreground">{p.nama}</div>
-                                <div className="text-xs text-muted-foreground">Rp {p.harga_satuan.toLocaleString('id-ID')}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Rp {p.harga_satuan.toLocaleString('id-ID')}/{p.satuan || "PCS"}
+                                  {p.isi_per_satuan ? ` (${p.isi_per_satuan} pc/unit)` : ''}
+                                </div>
                               </div>
                               <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full', p.jumlah_stok > 5 ? 'bg-olaTosca/10 text-olaTosca' : 'bg-orange-500/10 text-orange-600')}>
-                                {p.jumlah_stok}
+                                {p.jumlah_stok} {p.satuan || "PCS"}
                               </span>
                             </button>
                           ))
@@ -663,19 +689,46 @@ export default function Pesanan({ dark }) {
               {cart.length > 0 && (
                 <div className="bg-muted/20 border border-border rounded-xl p-4">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Keranjang ({cart.length})</h4>
-                  <div className="space-y-2">
-                    {cart.map(c => (
-                      <div key={c.product.id} className="flex items-center gap-3">
-                        <span className="text-sm text-foreground flex-1 truncate">{c.product.nama}</span>
-                        <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => updateCartQty(c.product.id, c.jumlah - 1)} className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-accent text-foreground text-xs transition">-</button>
-                          <span className="w-7 text-center text-sm font-semibold text-foreground">{c.jumlah}</span>
-                          <button type="button" onClick={() => updateCartQty(c.product.id, c.jumlah + 1)} className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-accent text-foreground text-xs transition">+</button>
+                  <div className="space-y-3">
+                    {cart.map(c => {
+                      const price = effectivePrice(c.product, c.satuan_beli)
+                      const productSatuan = c.product.satuan || "PCS"
+                      return (
+                        <div key={c.product.id} className="bg-card border border-border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm text-foreground flex-1 truncate font-medium">{c.product.nama}</span>
+                            <button type="button" onClick={() => removeFromCart(c.product.id)} className="text-destructive hover:text-destructive/80 transition flex-shrink-0"><Trash2 size={13}/></button>
+                          </div>
+                          {c.product.isi_per_satuan ? (
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <span className="text-[11px] text-muted-foreground">Satuan:</span>
+                              <div className="flex bg-muted/40 border border-border rounded-lg overflow-hidden">
+                                {["PCS", productSatuan].filter((v,i,a) => a.indexOf(v)===i).map(sat => (
+                                  <button key={sat} type="button" onClick={() => updateCartSatuan(c.product.id, sat)}
+                                    className={cn('px-2.5 py-1 text-[11px] font-medium transition',
+                                      c.satuan_beli === sat ? 'bg-olaTosca text-white' : 'text-muted-foreground hover:text-foreground'
+                                    )}>
+                                    {sat} {sat !== productSatuan && c.product.isi_per_satuan ? `(@${c.product.isi_per_satuan}pc)` : ''}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground mb-2">Satuan: {productSatuan}</div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              <button type="button" onClick={() => updateCartQty(c.product.id, c.jumlah - 1)} className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-accent text-foreground text-xs transition">-</button>
+                              <span className="w-7 text-center text-sm font-semibold text-foreground">{c.jumlah}</span>
+                              <button type="button" onClick={() => updateCartQty(c.product.id, c.jumlah + 1)} className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-accent text-foreground text-xs transition">+</button>
+                              <span className="text-[11px] text-muted-foreground ml-1">{c.satuan_beli}</span>
+                            </div>
+                            <span className="text-xs font-medium text-foreground">Rp {(price * c.jumlah).toLocaleString('id-ID')}</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-1">@ Rp {price.toLocaleString('id-ID')}/{c.satuan_beli}</div>
                         </div>
-                        <span className="text-xs font-medium text-foreground w-20 text-right">Rp {(c.product.harga_satuan * c.jumlah).toLocaleString('id-ID')}</span>
-                        <button type="button" onClick={() => removeFromCart(c.product.id)} className="text-destructive hover:text-destructive/80 transition"><Trash2 size={13}/></button>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                   <div className="flex justify-between items-center mt-4 pt-3 border-t border-border">
                     <span className="text-xs text-muted-foreground">Total</span>

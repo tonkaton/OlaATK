@@ -25,6 +25,10 @@ export class ItemPesananDto {
   @IsInt()
   @Min(1)
   jumlah!: number;
+
+  @IsString()
+  @IsOptional()
+  satuan_beli?: string;
 }
 
 export class CreatePesananDto {

@@ -21,6 +21,8 @@ const BAR_COLORS = ['#06C7A7','#6C63FF','#3B82F6','#F59E0B','#EF4444','#EC4899',
 const formatRupiah = (n) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0)
 
+const SATUAN_OPTIONS = ['PCS', 'RIM', 'BOX', 'PAK', 'LBR', 'DUS']
+
 const inputClass = "w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 focus:border-olaTosca/60 transition disabled:opacity-50"
 
 const tabs = [
@@ -142,7 +144,7 @@ export default function Produk({ dark }) {
   // ── State modal
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId]       = useState(null)
-  const [formData, setFormData]   = useState({ nama: '', jumlah_stok: '', harga_satuan: '' })
+  const [formData, setFormData]   = useState({ nama: '', jumlah_stok: '', harga_satuan: '', satuan: 'PCS', isi_per_satuan: '' })
   const [saving, setSaving]       = useState(false)
 
   // ── State laporan
@@ -183,13 +185,13 @@ export default function Produk({ dark }) {
   }, [period])
 
   const openAdd = () => {
-    setFormData({ nama: '', jumlah_stok: '', harga_satuan: '' })
+    setFormData({ nama: '', jumlah_stok: '', harga_satuan: '', satuan: 'PCS', isi_per_satuan: '' })
     setEditId(null)
     setModalOpen(true)
   }
 
   const openEdit = (p) => {
-    setFormData({ nama: p.nama, jumlah_stok: p.jumlah_stok, harga_satuan: p.harga_satuan })
+    setFormData({ nama: p.nama, jumlah_stok: p.jumlah_stok, harga_satuan: p.harga_satuan, satuan: p.satuan || 'PCS', isi_per_satuan: p.isi_per_satuan ?? '' })
     setEditId(p.id)
     setModalOpen(true)
   }
@@ -201,9 +203,11 @@ export default function Produk({ dark }) {
     try {
       setSaving(true)
       const data = {
-        nama:         formData.nama,
-        jumlah_stok:  parseInt(formData.jumlah_stok),
-        harga_satuan: parseFloat(formData.harga_satuan),
+        nama:            formData.nama,
+        jumlah_stok:     parseInt(formData.jumlah_stok),
+        harga_satuan:    parseFloat(formData.harga_satuan),
+        satuan:          formData.satuan,
+        isi_per_satuan:  formData.isi_per_satuan !== '' ? parseInt(formData.isi_per_satuan) : undefined,
       }
       if (editId !== null) await productsAPI.update(editId, data)
       else await productsAPI.create(data)
@@ -243,8 +247,8 @@ export default function Produk({ dark }) {
     let y = pdfHeader(doc, 'Laporan Stok Produk', `${pagination.total} produk terdaftar`)
 
     const cards = [
-      { label: 'Unit Sisa',     value: `${totalUnit} unit` },
-      { label: 'Total Terjual', value: `${totalTerjual} unit` },
+      { label: 'Total Produk',   value: `${pagination.total} item` },
+      { label: 'Total Terjual',  value: `${totalTerjual} ${products.length > 0 ? (products[0].satuan?.toLowerCase() || 'unit') : 'unit'}` },
       { label: 'Nilai Stok',    value: formatRupiah(totalNilai) },
     ]
     const cardW = (210 - M * 2) / cards.length
@@ -266,13 +270,14 @@ export default function Produk({ dark }) {
     y += 24
 
     y = pdfTable(doc,
-      ['Nama Produk', 'Masuk', 'Terjual', 'Sisa', 'Harga Satuan', 'Nilai Stok'],
+      ['Nama Produk', 'Masuk', 'Terjual', 'Sisa', 'Harga', 'Satuan', 'Nilai Stok'],
       products.map(p => {
         const terjual = p.totalTerjual || 0
         const sisa    = p.jumlah_stok
-        return [p.nama, `${terjual + sisa} unit`, `${terjual} unit`, `${sisa} unit`, formatRupiah(p.harga_satuan), formatRupiah(sisa * p.harga_satuan)]
+        const satuanLabel = p.isi_per_satuan ? `${p.isi_per_satuan} / ${p.satuan}` : (p.satuan || 'PCS')
+        return [p.nama, `${terjual + sisa}`, `${terjual}`, `${sisa}`, formatRupiah(p.harga_satuan), satuanLabel, formatRupiah(sisa * p.harga_satuan)]
       }),
-      [55, 22, 22, 22, 35, 24],
+      [48, 18, 18, 18, 28, 24, 26],
       y
     )
     doc.save(`laporan-stok-${toLocalDateKey(new Date())}.pdf`)
@@ -282,11 +287,44 @@ export default function Produk({ dark }) {
   const downloadPeriodPDF = () => {
     const doc = new jsPDF()
     const periodLabel = PERIOD_OPTIONS.find(p => p.key === period)?.label || period
-    let y = pdfHeader(doc, 'Laporan Penjualan Produk', `Periode: ${periodLabel} · ${periodData.length} produk terjual`)
+    const totalTerjualPeriod = periodData.reduce((s, p) => s + (p.totalJumlah || 0), 0)
+    const totalRevenuePeriod = periodData.reduce((s, p) => s + (p.totalRevenue || 0), 0)
+    let y = pdfHeader(doc, 'Laporan Penjualan Produk', `Periode: ${periodLabel} · ${periodData.length} produk · ${totalTerjualPeriod} unit terjual · ${formatRupiah(totalRevenuePeriod)}`)
+
+    const cards = [
+      { label: 'Produk Terjual', value: `${periodData.length} item` },
+      { label: 'Total Terjual',  value: `${totalTerjualPeriod} unit` },
+      { label: 'Total Revenue',  value: formatRupiah(totalRevenuePeriod) },
+    ]
+    const cardW = (210 - M * 2) / cards.length
+    cards.forEach((card, i) => {
+      const x = M + i * cardW
+      doc.setFillColor(240, 253, 250)
+      doc.setDrawColor(6, 199, 167)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(x, y, cardW - 3, 18, 2, 2, 'FD')
+      doc.setTextColor(130, 130, 130)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.text(card.label.toUpperCase(), x + 4, y + 6)
+      doc.setTextColor(30, 30, 30)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.text(String(card.value), x + 4, y + 14)
+    })
+    y += 24
+
     y = pdfTable(doc,
-      ['#', 'Nama Produk / Layanan', 'Terjual', 'Revenue (Rp)'],
-      periodData.map((p, i) => [i + 1, p.nama, `${p.totalJumlah}x`, formatRupiah(p.totalRevenue)]),
-      [12, 93, 25, 50],
+      ['#', 'Nama Produk', 'Harga', 'Satuan', 'Terjual', 'Revenue (Rp)'],
+      periodData.map((p, i) => [
+        i + 1,
+        p.nama,
+        p.harga_satuan ? formatRupiah(p.harga_satuan) : '-',
+        p.satuan_beli || 'PCS',
+        `${p.totalJumlah}`,
+        formatRupiah(p.totalRevenue),
+      ]),
+      [10, 70, 32, 22, 25, 41],
       y
     )
     doc.save(`penjualan-produk-${period}-${toLocalDateKey(new Date())}.pdf`)
@@ -403,7 +441,7 @@ export default function Produk({ dark }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      {['Nama Produk', 'Masuk', 'Terjual', 'Sisa', 'Harga Satuan', 'Aksi'].map(h => (
+                      {['Nama Produk', 'Masuk', 'Terjual', 'Sisa', 'Harga', 'Satuan', 'Aksi'].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -434,6 +472,9 @@ export default function Produk({ dark }) {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-foreground text-xs">{formatRupiah(p.harga_satuan)}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            {p.isi_per_satuan ? `${p.isi_per_satuan} / ${p.satuan}` : p.satuan || 'PCS'}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <button onClick={() => openEdit(p)}
@@ -584,6 +625,20 @@ export default function Produk({ dark }) {
                 <input value={formData.harga_satuan} onChange={e => setFormData(f => ({ ...f, harga_satuan: e.target.value }))}
                   placeholder="0" type="number" min="0" className={inputClass} disabled={saving} />
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Satuan</label>
+                <select value={formData.satuan} onChange={e => setFormData(f => ({ ...f, satuan: e.target.value, isi_per_satuan: e.target.value === 'PCS' ? '' : f.isi_per_satuan }))}
+                  className={inputClass} disabled={saving}>
+                  {SATUAN_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              {formData.satuan !== 'PCS' && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Isi per {formData.satuan} (PCS)</label>
+                  <input value={formData.isi_per_satuan} onChange={e => setFormData(f => ({ ...f, isi_per_satuan: e.target.value }))}
+                    placeholder="Contoh: 500" type="number" min="1" className={inputClass} disabled={saving} />
+                </div>
+              )}
             </div>
             {error && (
               <div className="mt-3 p-2.5 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs">{error}</div>

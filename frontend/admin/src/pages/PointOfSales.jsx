@@ -210,6 +210,7 @@ const StatusBadge = ({ status }) => {
 function TabGrafik() {
   const [period, setPeriod]       = useState('7d')
   const [salesData, setSalesData] = useState([])
+  const [salesDetail, setSalesDetail] = useState([])
   const [meta, setMeta]           = useState({ periodRevenue: 0, periodOrders: 0 })
   const [loading, setLoading]     = useState(true)
 
@@ -218,6 +219,7 @@ function TabGrafik() {
       setLoading(true)
       const data = await statsAPI.getDashboard(period)
       setMeta({ periodRevenue: data.periodRevenue || 0, periodOrders: data.periodOrders || 0 })
+      setSalesDetail(data.salesDetail || [])
       
       const raw = data.salesData || data.weeklySales || []
       
@@ -260,17 +262,53 @@ function TabGrafik() {
   const downloadPDF = () => {
     const doc = new jsPDF()
     const periodLabel = PERIOD_OPTIONS.find(p => p.key === period)?.label || period
-    let y = pdfHeader(doc, 'Laporan Keuangan', `Periode: ${periodLabel}`)
+    let y = pdfHeader(doc, 'Laporan Keuangan', `Periode: ${periodLabel} · ${meta.periodOrders} pesanan · ${formatRupiah(meta.periodRevenue)}`)
     y = pdfSummaryRow(doc, [
       { label: 'Total Revenue Periode', value: formatRupiah(meta.periodRevenue) },
       { label: 'Jumlah Pesanan',        value: `${meta.periodOrders} pesanan` },
     ], y)
+
+    // ── Tabel Ringkasan per Periode ──
     y = pdfTable(doc,
       ['Periode', 'Pendapatan (Rp)', 'Pesanan'],
       salesData.map(d => [d.displayLabel, formatRupiah(d.sales), d.orders]),
       [80, 65, 35],
       y
     )
+
+    // ── Rincian Produk per Tanggal ──
+    const detailItems = salesDetail.flatMap(d =>
+      d.products.map((p, i) => [
+        i === 0 ? d.displayLabel : '',
+        p.nama,
+        formatRupiah(p.harga_satuan),
+        p.totalJumlah,
+        p.satuan_beli || 'PCS',
+        formatRupiah(p.totalRevenue),
+      ])
+    )
+
+    if (detailItems.length > 0) {
+      // Spacer
+      y += 4
+
+      // Section title
+      doc.setFillColor(6, 199, 167)
+      doc.rect(15, y, 180, 7, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.text('Rincian Produk per Tanggal', 18, y + 5)
+      y += 11
+
+      y = pdfTable(doc,
+        ['Tanggal', 'Nama Produk', 'Harga', 'Jml', 'Satuan', 'Revenue (Rp)'],
+        detailItems,
+        [30, 65, 28, 12, 18, 27],
+        y
+      )
+    }
+
     doc.save(`laporan-keuangan-${period}-${toLocalDateKey(new Date())}.pdf`)
   }
 
@@ -505,14 +543,25 @@ function TabKalender() {
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase sticky top-0 bg-card py-1">Rincian Layanan</p>
                 {selectedData.details.map((d, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border/50 hover:bg-muted/40 transition">
-                    <span className="text-xs font-semibold text-foreground truncate pr-3 flex-1">{d.jenis}</span>
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-bold text-foreground">{formatRupiah(d.nilai)}</span>
-                      {d.kembalian > 0 && (
-                        <p className="text-[9px] text-muted-foreground mt-0.5">Kembalian {formatRupiah(d.kembalian)}</p>
-                      )}
+                  <div key={idx} className="p-3 rounded-xl bg-muted/20 border border-border/50 hover:bg-muted/40 transition">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground truncate pr-3 flex-1">{d.jenis}</span>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-bold text-foreground">{formatRupiah(d.nilai)}</span>
+                      </div>
                     </div>
+                    {d.produk && d.produk.length > 0 && (
+                      <div className="mt-1.5 ml-1 pl-2 border-l-2 border-olaTosca/30 space-y-0.5">
+                        {d.produk.map((p, pIdx) => (
+                          <p key={pIdx} className="text-[10px] text-muted-foreground">
+                            {p.jumlah}x {p.nama} — {formatRupiah(p.harga_satuan * p.jumlah)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {d.kembalian > 0 && (
+                      <p className="text-[9px] text-muted-foreground mt-1">Kembalian {formatRupiah(d.kembalian)}</p>
+                    )}
                   </div>
                 ))}
               </div>

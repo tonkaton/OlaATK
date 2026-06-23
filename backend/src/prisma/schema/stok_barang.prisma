@@ -6,6 +6,8 @@ model StokBarang {
   nama           String
   harga_satuan   Float
   jumlah_stok    Int
+  satuan         String          @default("PCS")
+  isi_per_satuan Int?
 
   barangTerbeli  BarangTerbeli[]
 

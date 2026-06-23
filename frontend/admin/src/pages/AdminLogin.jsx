@@ -6,6 +6,7 @@ import useForm from '../hooks/useForm'
 import { authAPI } from '../services/api'
 import { APP_CONFIG } from '../config/constants'
 import { cn } from '@/lib/utils'
+import logolaSrc from '../assets/logola.png'
 
 export default function AdminLogin() {
   const navigate = useNavigate()
@@ -59,7 +60,7 @@ export default function AdminLogin() {
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
             <img 
-              src="public/logola.png" 
+              src={logolaSrc} 
               alt="Logo OlaATK" 
               className="w-10 h-10 object-contain drop-shadow-sm" 
             />

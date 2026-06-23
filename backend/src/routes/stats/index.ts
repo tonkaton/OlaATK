@@ -185,13 +185,64 @@ const statsRoutes: RouteDefinitions = {
 							created_at: { gte: startDate, lte: endDate },
 							status: "SELESAI",
 						},
-						select: { created_at: true, nilai_pesanan: true },
+						select: {
+							created_at: true,
+							nilai_pesanan: true,
+							barangTerbeli: {
+								select: { nama_barang: true, harga_satuan: true, jumlah: true, satuan_beli: true },
+							},
+						},
 						orderBy: { created_at: "asc" },
 					}),
 				]);
 
 				const salesData = groupSalesData(periodOrders, startDate, endDate, groupBy);
 				const periodRevenue = periodOrders.reduce((s, o) => s + o.nilai_pesanan, 0);
+
+				// ── Sales Detail: produk per time bucket ──
+				const detailBuckets = new Map<string, Map<string, { nama: string; harga_satuan: number; satuan_beli: string; totalJumlah: number; totalRevenue: number }>>();
+				for (const order of periodOrders) {
+					const d = new Date(order.created_at);
+					let key: string;
+					if (groupBy === "hour") {
+						key = `${d.getHours().toString().padStart(2, "0")}:00`;
+					} else if (groupBy === "day") {
+						key = toLocalDateKey(d);
+					} else if (groupBy === "week") {
+						const w = getISOWeek(d);
+						key = `${d.getFullYear()}-W${w.toString().padStart(2, "0")}`;
+					} else {
+						key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+					}
+
+					if (!detailBuckets.has(key)) detailBuckets.set(key, new Map());
+					const bucket = detailBuckets.get(key)!;
+
+					for (const item of order.barangTerbeli || []) {
+						const existing = bucket.get(item.nama_barang);
+						if (existing) {
+							existing.totalJumlah += item.jumlah;
+							existing.totalRevenue += item.jumlah * item.harga_satuan;
+						} else {
+							bucket.set(item.nama_barang, {
+								nama: item.nama_barang,
+								harga_satuan: item.harga_satuan,
+								satuan_beli: item.satuan_beli || "PCS",
+								totalJumlah: item.jumlah,
+								totalRevenue: item.jumlah * item.harga_satuan,
+							});
+						}
+					}
+				}
+
+				const salesDetail = Array.from(detailBuckets.entries()).map(([dateKey, products]) => {
+					const sd = salesData.find(s => s.label === dateKey);
+					return {
+						label: dateKey,
+						displayLabel: sd?.displayLabel || dateKey,
+						products: Array.from(products.values()).sort((a, b) => b.totalRevenue - a.totalRevenue),
+					};
+				});
 
 				return {
 					success: true,
@@ -205,6 +256,7 @@ const statsRoutes: RouteDefinitions = {
 						periodOrders: periodOrders.length,
 						period,
 						salesData,
+						salesDetail,
 						// backward compat dengan Dashboard.jsx yang sekarang
 						weeklySales: salesData.map((d) => ({
 							day: d.displayLabel,
@@ -247,10 +299,12 @@ const statsRoutes: RouteDefinitions = {
 						nama_barang: true,
 						jumlah: true,
 						harga_satuan: true,
+						satuan_beli: true,
 					},
 				});
 
-				const map = new Map<string, { nama: string; totalJumlah: number; totalRevenue: number }>();
+				const map = new Map<string, { nama: string; harga_satuan: number; satuan_beli: string; totalJumlah: number; totalRevenue: number }>();
+				const satuanCount = new Map<string, Map<string, number>>();
 				for (const item of items) {
 					const existing = map.get(item.nama_barang);
 					if (existing) {
@@ -259,9 +313,30 @@ const statsRoutes: RouteDefinitions = {
 					} else {
 						map.set(item.nama_barang, {
 							nama: item.nama_barang,
+							harga_satuan: item.harga_satuan,
+							satuan_beli: item.satuan_beli || "PCS",
 							totalJumlah: item.jumlah,
 							totalRevenue: item.jumlah * item.harga_satuan,
 						});
+					}
+					// Track satuan_beli count buat ambil yg terbanyak
+					const nama = item.nama_barang;
+					if (!satuanCount.has(nama)) satuanCount.set(nama, new Map());
+					const sub = satuanCount.get(nama)!;
+					const sat = item.satuan_beli || "PCS";
+					sub.set(sat, (sub.get(sat) || 0) + 1);
+				}
+
+				// Ambil satuan_beli terbanyak per produk
+				for (const [nama, entry] of map) {
+					const counts = satuanCount.get(nama);
+					if (counts) {
+						let maxSat = entry.satuan_beli;
+						let maxCnt = 0;
+						for (const [sat, cnt] of counts) {
+							if (cnt > maxCnt) { maxCnt = cnt; maxSat = sat; }
+						}
+						entry.satuan_beli = maxSat;
 					}
 				}
 
@@ -304,6 +379,13 @@ const statsRoutes: RouteDefinitions = {
 						status: true,
 						uang_diterima: true,
 						kembalian: true,
+						barangTerbeli: {
+							select: {
+								nama_barang: true,
+								harga_satuan: true,
+								jumlah: true,
+							},
+						},
 					},
 					orderBy: { created_at: "asc" },
 				});
@@ -318,6 +400,7 @@ const statsRoutes: RouteDefinitions = {
 						status: string;
 						uang_diterima: number | null;
 						kembalian: number | null;
+						produk: { nama: string; harga_satuan: number; jumlah: number }[];
 					}[];
 				}>();
 
@@ -334,6 +417,11 @@ const statsRoutes: RouteDefinitions = {
 							status: order.status,
 							uang_diterima: order.uang_diterima,
 							kembalian: order.kembalian,
+							produk: (order as any).barangTerbeli.map((bt: any) => ({
+								nama: bt.nama_barang,
+								harga_satuan: bt.harga_satuan,
+								jumlah: bt.jumlah,
+							})),
 						});
 					} else {
 						dailyMap.set(dateKey, {
@@ -346,6 +434,11 @@ const statsRoutes: RouteDefinitions = {
 								status: order.status,
 								uang_diterima: order.uang_diterima,
 								kembalian: order.kembalian,
+								produk: (order as any).barangTerbeli.map((bt: any) => ({
+									nama: bt.nama_barang,
+									harga_satuan: bt.harga_satuan,
+									jumlah: bt.jumlah,
+								})),
 							}],
 						});
 					}

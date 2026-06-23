@@ -85,6 +85,8 @@ const stokBarangRoutes: RouteDefinitions = {
 						nama: dto.nama,
 						harga_satuan: dto.harga_satuan,
 						jumlah_stok: dto.jumlah_stok,
+						satuan: dto.satuan || "PCS",
+						...(dto.isi_per_satuan !== undefined && { isi_per_satuan: dto.isi_per_satuan }),
 					},
 				});
 
@@ -168,6 +170,8 @@ const stokBarangRoutes: RouteDefinitions = {
 						...(dto.nama && { nama: dto.nama }),
 						...(dto.harga_satuan !== undefined && { harga_satuan: dto.harga_satuan }),
 						...(dto.jumlah_stok !== undefined && { jumlah_stok: dto.jumlah_stok }),
+						...(dto.satuan && { satuan: dto.satuan }),
+						...(dto.isi_per_satuan !== undefined && { isi_per_satuan: dto.isi_per_satuan }),
 					},
 				});
 

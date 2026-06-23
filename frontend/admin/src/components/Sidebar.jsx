@@ -4,6 +4,7 @@ import { LayoutDashboard, Package, ClipboardList, Users, Settings, UserCog, Wren
 import { motion, AnimatePresence } from 'framer-motion'
 import { APP_CONFIG } from '../config/constants'
 import { cn } from '@/lib/utils'
+import logolaSrc from '../assets/logola.png'
 
 const iconMap = { LayoutDashboard, Package, ClipboardList, Users, UserCog, Wrench, Settings, Store }
 
@@ -23,9 +24,8 @@ function SidebarContent({ activeKey, setMobileOpen, isCollapsed }) {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo Section */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-border min-h-[73px]">
-        {/* Menggunakan image kustom dari public/logola.png */}
         <img 
-          src="admin/public/logola.png" 
+          src={logolaSrc} 
           alt="Logo OlaATK" 
           className="w-8 h-8 object-contain flex-shrink-0" 
         />

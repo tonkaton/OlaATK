@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsInt, IsOptional } from 'class-validator';
 
 export class CreateStokBarangDto {
 	@IsString()
@@ -12,6 +12,14 @@ export class CreateStokBarangDto {
 	@IsInt()
 	@IsNotEmpty()
 	jumlah_stok!: number;
+
+	@IsString()
+	@IsOptional()
+	satuan?: string;
+
+	@IsInt()
+	@IsOptional()
+	isi_per_satuan?: number;
 }
 
 export class UpdateStokBarangDto {
@@ -24,4 +32,12 @@ export class UpdateStokBarangDto {
 
 	@IsInt()
 	jumlah_stok?: number;
+
+	@IsString()
+	@IsOptional()
+	satuan?: string;
+
+	@IsInt()
+	@IsOptional()
+	isi_per_satuan?: number;
 }

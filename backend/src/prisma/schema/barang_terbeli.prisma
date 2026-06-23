@@ -6,6 +6,7 @@ model BarangTerbeli {
   nama_barang     String
   harga_satuan    Float
   jumlah          Int
+  satuan_beli     String  @default("PCS")
 
   pesanan         Pesanan     @relation(fields: [id_pesanan], references: [id], onDelete: Cascade)
   stokBarang      StokBarang? @relation(fields: [stok_barang_id], references: [id], onDelete: SetNull)
