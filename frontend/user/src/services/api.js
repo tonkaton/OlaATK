@@ -129,6 +129,24 @@ export const productsAPI = {
 
 // [FIXED] UPLOAD API (GANTI KE BASE64 / FileReader)
 export const uploadAPI = {
+  scanDocx: async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        try {
+          const response = await api.post('/upload/scan-docx', {
+            fileName: file.name,
+            fileData: reader.result,
+          })
+          resolve(response.data)
+        } catch (error) {
+          reject(error)
+        }
+      }
+      reader.onerror = () => reject(new Error('Gagal membaca file'))
+      reader.readAsDataURL(file)
+    })
+  },
   uploadFile: async (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
@@ -171,6 +189,10 @@ export const configAPI = {
 export const paymentAPI = {
   createToken: async (orderData) => {
     const response = await api.post('/payment/create-token', orderData)
+    return response.data
+  },
+  confirmPayment: async (confirmData) => {
+    const response = await api.post('/payment/confirm', confirmData)
     return response.data
   },
 }

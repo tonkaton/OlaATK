@@ -85,10 +85,14 @@ export const servicesAPI = {
 
 // Orders API (Pesanan) - UPGRADED: getTodayCount support mode
 export const ordersAPI = {
-  getAll: async (page = 1, search = '', status = '', limit = 10) => {
+  getAll: async ({ page = 1, search = '', limit = 10, pengiriman, mode, status, payment_status, jenis } = {}) => {
     const params = { page, limit }
     if (search) params.search = search
+    if (pengiriman) params.pengiriman = pengiriman
+    if (mode) params.mode = mode
     if (status) params.status = status
+    if (payment_status) params.payment_status = payment_status
+    if (jenis) params.jenis = jenis
     const response = await api.get('/pesanan', { params })
     return response.data.data || response.data
   },
@@ -110,8 +114,8 @@ export const ordersAPI = {
     return response.data.pesanan
   },
   // [WAJIB ADA] Buat Ganti Status (Menunggu -> Diproses)
-  updateStatus: async (id, status) => {
-    const response = await api.put(`/pesanan/${id}/status`, { status })
+  updateStatus: async (id, data) => {
+    const response = await api.put(`/pesanan/${id}/status`, data)
     return response.data
   },
   delete: async (id) => {

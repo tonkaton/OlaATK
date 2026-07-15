@@ -26,6 +26,12 @@ model Pesanan {
   status            StatusPesanan   @default(MENUNGGU)
   mode_pesanan      ModePesanan     @default(ONLINE)
 
+  sisi_cetak        String          @default("SATU_SISI")
+  gramasi           String          @default("80gr")
+  metode_pengiriman String          @default("AMBIL")
+  ongkir            Float?
+  alamat_pengiriman String?
+
   midtrans_order_id String?         @unique
   payment_status    String?
   snap_token        String?

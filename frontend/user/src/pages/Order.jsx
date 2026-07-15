@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Icon } from '@iconify/react'
 import { servicesAPI, uploadAPI, authAPI, paymentAPI } from '../services/api'
@@ -8,6 +9,7 @@ import Input from '../components/Input'
 import Textarea from '../components/Textarea'
 import Button from '../components/Button'
 import Card from '../components/Card'
+import ColorDetectModal from '../components/ColorDetectModal'
 
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
@@ -27,7 +29,10 @@ export default function Order() {
     totalPages: 1,
     bindingType: 'Tidak Ada',
     bwPages: 0,
-    colorPages: 0
+    colorPages: 0,
+    sisi_cetak: 'SATU_SISI',
+    gramasi: '80gr',
+    metode_pengiriman: 'AMBIL'
   })
 
   const [note, setNote] = useState('')
@@ -44,6 +49,13 @@ export default function Order() {
   const [paymentPending, setPaymentPending] = useState(false)
   const [error, setError] = useState('')
   const [loadingServices, setLoadingServices] = useState(true)
+
+  const [alamatMode, setAlamatMode] = useState('default')
+  const userAlamatRef = useRef('')
+  const [colorDetect, setColorDetect] = useState({ status: 'idle', colorPages: [], colorCount: 0, bwCount: 0 })
+  const navigate = useNavigate()
+  const [showColorModal, setShowColorModal] = useState(false)
+  const [colorModalType, setColorModalType] = useState('')
 
   // Load Midtrans
   useEffect(() => {
@@ -63,6 +75,7 @@ export default function Order() {
           const response = await authAPI.getPelangganByUserId(user.userId)
           if (response.success && response.data?.pelanggan) {
             const { nama_lengkap, nomor_telepon, alamat } = response.data.pelanggan
+            userAlamatRef.current = alamat || ''
             setContactForm({ name: nama_lengkap || '', phone: nomor_telepon || '', alamat: alamat || '' })
           }
         } catch (err) { console.error(err) }
@@ -93,6 +106,36 @@ export default function Order() {
     fetchServices()
   }, [])
 
+  // Effect: when color detect done, auto-fill or show warning
+  useEffect(() => {
+    if (colorDetect.status !== 'done') return
+    if (orderDetails.colorMode === 'Campur') {
+      setOrderDetails(prev => ({
+        ...prev,
+        bwPages: prev.bwPages > 0 ? prev.bwPages : colorDetect.bwCount,
+        colorPages: prev.colorPages > 0 ? prev.colorPages : colorDetect.colorCount,
+      }))
+      if (colorDetect.colorCount > 0) { setColorModalType('campur-filled'); setShowColorModal(true) }
+      else setShowColorModal(false)
+    } else if (orderDetails.colorMode === 'Hitam Putih' && colorDetect.colorCount > 0) {
+      setColorModalType('warning-bw'); setShowColorModal(true)
+    }
+  }, [colorDetect.status])
+
+  // Effect: when user switches to Campur after detection, auto-fill
+  useEffect(() => {
+    if (colorDetect.status === 'done' && orderDetails.colorMode === 'Campur') {
+      setOrderDetails(prev => ({
+        ...prev,
+        bwPages: prev.bwPages > 0 ? prev.bwPages : colorDetect.bwCount,
+        colorPages: prev.colorPages > 0 ? prev.colorPages : colorDetect.colorCount,
+      }))
+    }
+    if (colorDetect.status === 'done' && orderDetails.colorMode === 'Hitam Putih' && colorDetect.colorCount > 0) {
+      setColorModalType('warning-bw'); setShowColorModal(true)
+    }
+  }, [orderDetails.colorMode])
+
   const fetchPrices = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/konfigurasi/public`)
@@ -119,6 +162,9 @@ export default function Order() {
     setFileError('')
     setIsPdf(false)
     setIsImage(false)
+    setColorDetect({ status: 'idle', colorPages: [], colorCount: 0, bwCount: 0 })
+    setShowColorModal(false)
+    setOrderDetails(prev => ({ ...prev, bwPages: 0, colorPages: 0 }))
 
     const type = selectedFile.type
 
@@ -128,6 +174,7 @@ export default function Order() {
         const arrayBuffer = await selectedFile.arrayBuffer()
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
         setOrderDetails(prev => ({ ...prev, totalPages: pdf.numPages }))
+        detectColors(pdf, pdf.numPages)
       } catch (err) {
         console.error('Gagal scan PDF:', err)
         setFileError('Gagal membaca PDF. Silakan isi jumlah halaman manual.')
@@ -135,23 +182,41 @@ export default function Order() {
       }
       return
     }
-
     if (type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       try {
-        const JSZip = (await import('jszip')).default
-        const zip = await JSZip.loadAsync(selectedFile)
-        const appXml = await zip.file('docProps/app.xml')?.async('text')
-        if (appXml) {
-          const match = appXml.match(/<Pages>(\d+)<\/Pages>/)
-          if (match) {
-            setOrderDetails(prev => ({ ...prev, totalPages: parseInt(match[1]) }))
-            return
+        setColorModalType('scanning')
+        setShowColorModal(true)
+
+        // Baca jumlah halaman dari metadata DOCX
+        let docxPages = 1
+        try {
+          const JSZip = (await import('jszip')).default
+          const zip = await JSZip.loadAsync(selectedFile)
+          const appXml = await zip.file('docProps/app.xml')?.async('text')
+          if (appXml) {
+            const match = appXml.match(/<Pages>(\d+)<\/Pages>/)
+            if (match) docxPages = parseInt(match[1])
           }
+        } catch { /* fallback 1 */ }
+        setOrderDetails(prev => ({ ...prev, totalPages: docxPages }))
+
+        // Scan warna via CloudConvert
+        const scanResult = await uploadAPI.scanDocx(selectedFile)
+        if (scanResult?.success && scanResult?.data?.pdfBase64) {
+          const pdfBinary = atob(scanResult.data.pdfBase64)
+          const pdfArray = new Uint8Array(pdfBinary.length)
+          for (let i = 0; i < pdfBinary.length; i++) pdfArray[i] = pdfBinary.charCodeAt(i)
+
+          const pdf = await pdfjsLib.getDocument({ data: pdfArray }).promise
+          setOrderDetails(prev => ({ ...prev, totalPages: pdf.numPages }))
+          detectColors(pdf, pdf.numPages)
+        } else {
+          setShowColorModal(false)
         }
       } catch (err) {
         console.error('Gagal scan DOCX:', err)
+        setShowColorModal(false)
       }
-      setOrderDetails(prev => ({ ...prev, totalPages: 1 }))
       return
     }
 
@@ -162,6 +227,40 @@ export default function Order() {
     }
 
     setOrderDetails(prev => ({ ...prev, totalPages: 1 }))
+  }
+
+  // Color detection from PDF
+  const detectColors = async (pdf, numPages) => {
+    setColorDetect(prev => ({ ...prev, status: 'scanning' }))
+    setShowColorModal(true)
+    setColorModalType('scanning')
+    const colorPages = []
+    for (let i = 1; i <= numPages; i++) {
+      try {
+        const page = await pdf.getPage(i)
+        const viewport = page.getViewport({ scale: 0.3 })
+        const canvas = document.createElement('canvas')
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+        const ctx = canvas.getContext('2d')
+        await page.render({ canvasContext: ctx, viewport }).promise
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const pixels = imageData.data
+        let hasColor = false
+        for (let j = 0; j < pixels.length; j += 4) {
+          const r = pixels[j]; const g = pixels[j + 1]; const b = pixels[j + 2]
+          if (Math.abs(r - g) > 30 || Math.abs(r - b) > 30 || Math.abs(g - b) > 30) {
+            hasColor = true; break
+          }
+        }
+        if (hasColor) colorPages.push(i)
+      } catch (err) {
+        console.error('Gagal scan halaman', i, err)
+      }
+      if (i % 5 === 0) await new Promise(r => setTimeout(r, 0))
+    }
+    setColorDetect({ status: 'done', colorPages, colorCount: colorPages.length, bwCount: numPages - colorPages.length })
+    return colorPages
   }
 
   const uploadFile = async () => {
@@ -189,8 +288,9 @@ export default function Order() {
 
     if (isCetak) {
       const kertas = orderDetails.paperSize.toLowerCase()
-      const hargaBw = parseInt(priceList[`harga_cetak_${kertas}_bw`]) || 0
-      const hargaWarna = parseInt(priceList[`harga_cetak_${kertas}_color`]) || 0
+      const gr = orderDetails.gramasi || '80gr'
+      const hargaBw = parseInt(priceList[`harga_cetak_${kertas}_${gr}_bw`]) || parseInt(priceList[`harga_cetak_${kertas}_bw`]) || 0
+      const hargaWarna = parseInt(priceList[`harga_cetak_${kertas}_${gr}_color`]) || parseInt(priceList[`harga_cetak_${kertas}_color`]) || 0
 
       if (orderDetails.colorMode === 'Hitam Putih') {
         totalPerBundel += (parseInt(orderDetails.totalPages) || 0) * hargaBw
@@ -218,14 +318,15 @@ export default function Order() {
     setIsPdf(false)
     setIsImage(false)
     setNote('')
-    setOrderDetails({ paperSize: 'A4', colorMode: 'Hitam Putih', copies: 1, totalPages: 1, bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0 })
+    setOrderDetails({ paperSize: 'A4', colorMode: 'Hitam Putih', copies: 1, totalPages: 1, bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0, sisi_cetak: 'SATU_SISI', gramasi: '80gr', metode_pengiriman: 'AMBIL' })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
-    if (!contactForm.name || !contactForm.phone || !contactForm.alamat) return setError('Data diri wajib diisi semua')
+    if (!contactForm.name || !contactForm.phone) return setError('Nama dan nomor WA wajib diisi')
+    if (orderDetails.metode_pengiriman === 'DIANTAR' && !contactForm.alamat) return setError('Alamat pengiriman wajib diisi')
     const isPrintService = selectedService?.nama.toLowerCase().includes('print') || selectedService?.nama.toLowerCase().includes('cetak')
     if (isPrintService && !file && !uploadedFileName) return setError('Mohon upload dokumen yang ingin dicetak')
     if (isPrintService && orderDetails.colorMode === 'Campur') {
@@ -245,14 +346,17 @@ export default function Order() {
         catch (uErr) { return setError('Gagal upload file. Cek koneksi internet.') }
       }
 
-      const tokenResponse = await paymentAPI.createToken({
+      const orderPayload = {
         nama_lengkap: contactForm.name,
         nomor_telepon: contactForm.phone,
         alamat: contactForm.alamat,
+        alamat_pengiriman: orderDetails.metode_pengiriman === 'DIANTAR' ? contactForm.alamat : null,
+        redirect_url: window.location.origin + '/riwayat',
         jenis_layanan: selectedService.nama,
         nama_file: finalFileName || null,
         catatan_pesanan: note || null,
         mode_pesanan: 'ONLINE',
+        metode_pengiriman: orderDetails.metode_pengiriman,
         specs: {
           paperSize: orderDetails.paperSize,
           colorMode: orderDetails.colorMode,
@@ -261,38 +365,52 @@ export default function Order() {
           bindingType: orderDetails.bindingType,
           bwPages: orderDetails.bwPages,
           colorPages: orderDetails.colorPages,
+          sisiCetak: orderDetails.sisi_cetak,
+          gramasi: orderDetails.gramasi,
         }
-      })
+      }
+
+      const tokenResponse = await paymentAPI.createToken(orderPayload)
 
       if (!tokenResponse.success) {
         return setError(tokenResponse.message || 'Gagal membuat transaksi')
       }
 
-      const { snap_token } = tokenResponse.data
+      const { snap_token, order_id } = tokenResponse.data
+
+      // Simpan data buat confirmPayment setelah bayar
+      const pendingOrder = { ...orderPayload, order_id, snap_token }
+      sessionStorage.setItem('pending_order', JSON.stringify(pendingOrder))
 
       setPaymentPending(true)
       window.snap.pay(snap_token, {
-        onSuccess: () => {
+        onSuccess: async () => {
+          try {
+            const saved = JSON.parse(sessionStorage.getItem('pending_order'))
+            if (saved) await paymentAPI.confirmPayment(saved)
+          } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
+          sessionStorage.removeItem('pending_order')
           setPaymentPending(false)
-          setSuccess(true)
-          window.scrollTo(0, 0)
           resetForm()
-          setTimeout(() => setSuccess(false), 6000)
+          navigate('/riwayat')
         },
-        onPending: () => {
+        onPending: async () => {
+          try {
+            const saved = JSON.parse(sessionStorage.getItem('pending_order'))
+            if (saved) await paymentAPI.confirmPayment(saved)
+          } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
+          sessionStorage.removeItem('pending_order')
           setPaymentPending(false)
-          setSuccess(true)
-          window.scrollTo(0, 0)
           resetForm()
-          setTimeout(() => setSuccess(false), 6000)
+          navigate('/riwayat')
         },
         onError: () => {
           setPaymentPending(false)
           setError('Pembayaran gagal. Silakan coba lagi.')
         },
         onClose: () => {
+          sessionStorage.removeItem('pending_order')
           setPaymentPending(false)
-          setError('Pembayaran dibatalkan. Pesanan tersimpan, selesaikan pembayaran untuk diproses.')
         },
       })
     } catch (err) {
@@ -301,6 +419,17 @@ export default function Order() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleModalKeepBw = () => { setShowColorModal(false) }
+  const handleModalSwitchColor = () => { setOrderDetails(prev => ({ ...prev, colorMode: 'Berwarna' })); setShowColorModal(false) }
+  const handleModalSwitchCampur = () => {
+    setOrderDetails(prev => ({
+      ...prev, colorMode: 'Campur',
+      bwPages: colorDetect.bwCount,
+      colorPages: colorDetect.colorCount,
+    }))
+    setShowColorModal(false)
   }
 
   if (loadingServices) {
@@ -359,17 +488,65 @@ export default function Order() {
                   required
                 />
                 <div className="md:col-span-2">
-                  <Textarea
-                    label="Alamat Pengiriman / Jemput"
-                    name="alamat"
-                    value={contactForm.alamat}
-                    onChange={handleContactChange}
-                    disabled={user?.userType === 'user' && contactForm.alamat}
-                    placeholder="Tuliskan alamat lengkap dengan detail patokan..."
-                    rows={3}
-                    required
-                  />
+                  <label className="block text-sm font-semibold text-dark mb-3 uppercase tracking-wider">Metode Pengiriman</label>
+                  <div className="flex bg-light-gray p-1.5 rounded-xl border border-border">
+                    {[{ value: 'AMBIL', label: 'Ambil di Toko', icon: 'solar:shop-bold' }, { value: 'DIANTAR', label: 'Diantar', icon: 'solar:map-point-linear' }].map(met => (
+                      <button
+                        key={met.value}
+                        type="button"
+                        onClick={() => handleDetailChange('metode_pengiriman', met.value)}
+                        className={`flex-1 py-3 text-sm rounded-lg transition-all flex items-center justify-center gap-2 ${
+                          orderDetails.metode_pengiriman === met.value
+                            ? 'bg-white shadow-sm border border-border text-dark font-semibold'
+                            : 'text-neutral-text hover:text-dark font-medium'
+                        }`}
+                      >
+                        {met.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                {orderDetails.metode_pengiriman === 'DIANTAR' && (
+                  <div className="md:col-span-2 space-y-3">
+                    {user && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setAlamatMode('default'); setContactForm(prev => ({ ...prev, alamat: userAlamatRef.current })) }}
+                          className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-all ${
+                            alamatMode === 'default' ? 'bg-olaTosca/10 border-olaTosca text-olaTosca font-semibold' : 'bg-white border-border text-neutral-text'
+                          }`}
+                        >
+                          Alamat Saya
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setAlamatMode('custom'); setContactForm(prev => ({ ...prev, alamat: '' })) }}
+                          className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-all ${
+                            alamatMode === 'custom' ? 'bg-olaTosca/10 border-olaTosca text-olaTosca font-semibold' : 'bg-white border-border text-neutral-text'
+                          }`}
+                        >
+                          Alamat Lain
+                        </button>
+                      </div>
+                    )}
+                    {user && alamatMode === 'default' ? (
+                      <div className="p-3 bg-light-gray rounded-xl border border-border text-sm text-dark">
+                        {userAlamatRef.current || 'Belum ada alamat tersimpan.'}
+                      </div>
+                    ) : (
+                      <Textarea
+                        label="Alamat Pengiriman"
+                        name="alamat"
+                        value={contactForm.alamat}
+                        onChange={handleContactChange}
+                        placeholder="Tuliskan alamat lengkap dengan detail patokan..."
+                        rows={3}
+                        required
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -488,6 +665,47 @@ export default function Order() {
                           }`}
                         >
                           {mode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <label className="block text-sm font-semibold text-dark mb-3 uppercase tracking-wider">Sisi Cetak</label>
+                    <div className="flex bg-light-gray p-1.5 rounded-xl border border-border">
+                      {['SATU_SISI', 'DUA_SISI'].map(sisi => (
+                        <button
+                          key={sisi}
+                          type="button"
+                          onClick={() => handleDetailChange('sisi_cetak', sisi)}
+                          className={`flex-1 py-3 px-4 text-sm rounded-lg transition-all ${
+                            orderDetails.sisi_cetak === sisi
+                              ? 'bg-white shadow-sm border border-border text-dark font-semibold'
+                              : 'text-neutral-text hover:text-dark font-medium'
+                          }`}
+                        >
+                          {sisi === 'SATU_SISI' ? 'Satu Sisi' : 'Dua Sisi (Bolak-Balik)'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-dark mb-3 uppercase tracking-wider">Gramasi Kertas</label>
+                    <div className="flex bg-light-gray p-1.5 rounded-xl border border-border">
+                      {['70gr', '80gr'].map(gr => (
+                        <button
+                          key={gr}
+                          type="button"
+                          onClick={() => handleDetailChange('gramasi', gr)}
+                          className={`flex-1 py-3 text-sm rounded-lg transition-all ${
+                            orderDetails.gramasi === gr
+                              ? 'bg-white shadow-sm border border-border text-dark font-semibold'
+                              : 'text-neutral-text hover:text-dark font-medium'
+                          }`}
+                        >
+                          {gr}
                         </button>
                       ))}
                     </div>
@@ -663,6 +881,17 @@ export default function Order() {
           </div>
 
         </form>
+
+        <ColorDetectModal
+          open={showColorModal}
+          type={colorModalType}
+          colorCount={colorDetect.colorCount}
+          totalPages={colorDetect.colorCount + colorDetect.bwCount}
+          onKeepBw={handleModalKeepBw}
+          onSwitchColor={handleModalSwitchColor}
+          onSwitchCampur={handleModalSwitchCampur}
+          onClose={() => setShowColorModal(false)}
+        />
       </div>
     </div>
   )

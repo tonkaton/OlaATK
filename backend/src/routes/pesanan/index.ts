@@ -24,6 +24,9 @@ const pesananRoutes: RouteDefinitions = {
         const search = req.query?.['search'] as string | undefined;
         const status = req.query?.['status'] as string | undefined;
         const mode = req.query?.['mode'] as string | undefined;
+        const pengiriman = req.query?.['pengiriman'] as string | undefined;
+        const paymentStatus = req.query?.['payment_status'] as string | undefined;
+        const jenis = req.query?.['jenis'] as string | undefined;
         const page = parseInt((req.query?.['page'] as string) || "1");
         const limit = parseInt((req.query?.['limit'] as string) || "10");
         const skip = (page - 1) * limit;
@@ -36,6 +39,10 @@ const pesananRoutes: RouteDefinitions = {
 
         if (status) whereClause.status = status;
         if (mode) whereClause.mode_pesanan = mode;
+        if (pengiriman) whereClause.metode_pengiriman = pengiriman;
+        if (paymentStatus) whereClause.payment_status = paymentStatus;
+        if (jenis === 'produk') whereClause.jenis_layanan = 'Penjualan Produk';
+        if (jenis === 'layanan') whereClause.jenis_layanan = { not: 'Penjualan Produk' };
 
         if (search) {
           whereClause.OR = [
@@ -104,6 +111,9 @@ const pesananRoutes: RouteDefinitions = {
               nilai_pesanan: finalNilaiPesanan,
               status: "MENUNGGU",
               mode_pesanan: mode,
+              sisi_cetak: dto.sisi_cetak || "SATU_SISI",
+              gramasi: dto.gramasi || "80gr",
+              metode_pengiriman: dto.metode_pengiriman || "AMBIL",
             },
             include: { pelanggan: true },
           });
@@ -164,7 +174,7 @@ const pesananRoutes: RouteDefinitions = {
   "/pesanan/public": {
     post: async (req) => {
       try {
-        const { nama_lengkap, nomor_telepon, alamat, jenis_layanan, nama_file, catatan_pesanan, nilai_pesanan, items, mode_pesanan, uang_diterima, kembalian } = req.body;
+        const { nama_lengkap, nomor_telepon, alamat, jenis_layanan, nama_file, catatan_pesanan, nilai_pesanan, items, mode_pesanan, uang_diterima, kembalian, sisi_cetak, gramasi, metode_pengiriman, alamat_pengiriman } = req.body;
 
         if (!nama_lengkap || !nomor_telepon || !jenis_layanan) {
           return { success: false, statusCode: 400, message: "Data wajib tidak lengkap" };
@@ -207,6 +217,10 @@ const pesananRoutes: RouteDefinitions = {
               kembalian: finalMode === "OFFLINE" && typeof kembalian === "number" ? kembalian : null,
               status: "MENUNGGU",
               mode_pesanan: finalMode,
+              sisi_cetak: sisi_cetak || "SATU_SISI",
+              gramasi: gramasi || "80gr",
+              metode_pengiriman: finalMode === "OFFLINE" ? "AMBIL" : (metode_pengiriman || "AMBIL"),
+              alamat_pengiriman: metode_pengiriman === "DIANTAR" ? (alamat_pengiriman ?? null) : null,
             }
           });
 
@@ -315,6 +329,11 @@ const pesananRoutes: RouteDefinitions = {
             ...(dto.nama_file !== undefined && { nama_file: dto.nama_file }),
             ...(dto.catatan_pesanan !== undefined && { catatan_pesanan: dto.catatan_pesanan }),
             ...(dto.nilai_pesanan !== undefined && { nilai_pesanan: dto.nilai_pesanan }),
+            ...(dto.sisi_cetak !== undefined && { sisi_cetak: dto.sisi_cetak }),
+            ...(dto.gramasi !== undefined && { gramasi: dto.gramasi }),
+            ...(dto.metode_pengiriman !== undefined && { metode_pengiriman: dto.metode_pengiriman }),
+            ...(dto.ongkir !== undefined && { ongkir: dto.ongkir }),
+            ...(dto.alamat_pengiriman !== undefined && { alamat_pengiriman: dto.alamat_pengiriman }),
           },
           include: { pelanggan: true, barangTerbeli: true },
         });
@@ -392,7 +411,10 @@ const pesananRoutes: RouteDefinitions = {
 
           return tx.pesanan.update({
             where: { id },
-            data: { status: dto.status },
+            data: {
+              status: dto.status,
+              ...(dto.payment_status !== undefined && { payment_status: dto.payment_status }),
+            },
             include: { pelanggan: true, barangTerbeli: true },
           });
         });

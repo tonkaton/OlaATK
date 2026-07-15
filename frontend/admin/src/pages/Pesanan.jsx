@@ -37,6 +37,60 @@ const PaymentBadge = ({ status }) => {
 const inputClass = "w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 focus:border-olaTosca/60 transition"
 const selectClass = "w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 transition"
 
+const FILTERS = {
+  '':              {},
+  'AMBIL':         { pengiriman: 'AMBIL' },
+  'DIANTAR':       { pengiriman: 'DIANTAR' },
+  'ONLINE':        { mode: 'ONLINE' },
+  'OFFLINE':       { mode: 'OFFLINE' },
+  'MENUNGGU':      { status: 'MENUNGGU' },
+  'DIPROSES':      { status: 'DIPROSES' },
+  'SELESAI':       { status: 'SELESAI' },
+  'BATAL':         { status: 'BATAL' },
+  'PPENDING':      { payment_status: 'pending' },
+  'PSETTLEMENT':   { payment_status: 'settlement' },
+  'PCANCEL':       { payment_status: 'cancel' },
+  'PEXPIRE':       { payment_status: 'expire' },
+  'PRODUK':        { jenis: 'produk' },
+  'LAYANAN':       { jenis: 'layanan' },
+}
+
+const FILTER_LABELS = {
+  '': 'Semua',
+  'AMBIL': 'Ambil di Toko',
+  'DIANTAR': 'Diantar',
+  'ONLINE': 'Online',
+  'OFFLINE': 'Offline',
+  'MENUNGGU': 'Menunggu',
+  'DIPROSES': 'Diproses',
+  'SELESAI': 'Selesai',
+  'BATAL': 'Batal',
+  'PPENDING': 'Payment: Pending',
+  'PSETTLEMENT': 'Payment: Lunas',
+  'PCANCEL': 'Payment: Ditolak',
+  'PEXPIRE': 'Payment: Expire',
+  'PRODUK': 'Produk',
+  'LAYANAN': 'Layanan',
+}
+
+const FILTER_ICONS = {
+  '': '\u2205',
+  'AMBIL': '\uD83C\uDFEA',
+  'DIANTAR': '\uD83D\uDE9A',
+  'ONLINE': '\uD83C\uDF10',
+  'OFFLINE': '\uD83C\uDFED',
+  'MENUNGGU': '\u23F3',
+  'DIPROSES': '\uD83D\uDD27',
+  'SELESAI': '\u2705',
+  'BATAL': '\u274C',
+  'PPENDING': '\uD83D\uDCB3',
+  'PSETTLEMENT': '\uD83D\uDCB0',
+  'PCANCEL': '\uD83D\uDEAB',
+  'PEXPIRE': '\u23F0',
+  'PRODUK': '\uD83D\uDCE6',
+  'LAYANAN': '\uD83D\uDDA8\uFE0F',
+}
+
 export default function Pesanan({ dark }) {
   const [activeTab, setActiveTab] = useState('list')
 
@@ -47,6 +101,11 @@ export default function Pesanan({ dark }) {
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 10 })
   const [expandedOrderId, setExpandedOrderId] = useState(null)
+  const [filterKey, setFilterKey] = useState("")
+  const [editingOngkir, setEditingOngkir] = useState(null) // order id being edited
+  const [ongkirValue, setOngkirValue] = useState("")
+  const [editingPaymentStatus, setEditingPaymentStatus] = useState(null)
+  const [paymentStatusValue, setPaymentStatusValue] = useState("")
 
   // --- STATE KASIR ---
   const [services, setServices] = useState([])
@@ -54,7 +113,9 @@ export default function Pesanan({ dark }) {
   const [offlineForm, setOfflineForm] = useState({ name: '', phone: '', service: null, notes: '' })
   const [offlineDetails, setOfflineDetails] = useState({
     copies: 1, totalPages: 1, paperSize: 'A4',
-    colorMode: 'Hitam Putih', bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0
+    colorMode: 'Hitam Putih', bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0,
+    sisi_cetak: 'SATU_SISI',
+    gramasi: '80gr'
   })
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState('')
@@ -78,12 +139,16 @@ export default function Pesanan({ dark }) {
     let interval
     if (activeTab === 'list') interval = setInterval(fetchOrders, 30000)
     return () => clearInterval(interval)
-  }, [page, search, activeTab])
+  }, [page, search, activeTab, filterKey])
 
   const fetchOrders = async () => {
     setLoading(true)
     try {
-      const res = await ordersAPI.getAll(page, search)
+      const filterParams = FILTERS[filterKey] || {}
+      const res = await ordersAPI.getAll({
+        page, search, limit: pagination.limit,
+        ...filterParams,
+      })
       setOrders(res.pesanan || res.data?.pesanan || [])
       setPagination(res.pagination || res.data?.pagination || { total: 0, totalPages: 0, limit: 10 })
     } catch (err) { console.error(err) }
@@ -166,8 +231,9 @@ export default function Pesanan({ dark }) {
     let totalPerBundel = 0
     const kertas = offlineDetails.paperSize.toLowerCase()
     if (isCetak) {
-      const hargaBw = parseInt(priceList[`harga_cetak_${kertas}_bw`]) || 0
-      const hargaWarna = parseInt(priceList[`harga_cetak_${kertas}_color`]) || 0
+      const gr = offlineDetails.gramasi || '80gr'
+      const hargaBw = parseInt(priceList[`harga_cetak_${kertas}_${gr}_bw`]) || parseInt(priceList[`harga_cetak_${kertas}_bw`]) || 0
+      const hargaWarna = parseInt(priceList[`harga_cetak_${kertas}_${gr}_color`]) || parseInt(priceList[`harga_cetak_${kertas}_color`]) || 0
       if (offlineDetails.colorMode === 'Hitam Putih') totalPerBundel += (parseInt(offlineDetails.totalPages) || 0) * hargaBw
       else if (offlineDetails.colorMode === 'Berwarna') totalPerBundel += (parseInt(offlineDetails.totalPages) || 0) * hargaWarna
       else if (offlineDetails.colorMode === 'Campur') {
@@ -196,7 +262,7 @@ export default function Pesanan({ dark }) {
   const handleStatusChange = async (orderId, newStatus) => {
     if (!window.confirm(`Ubah status ke ${newStatus}?`)) return
     try {
-      const res = await ordersAPI.updateStatus(orderId, newStatus)
+      const res = await ordersAPI.updateStatus(orderId, { status: newStatus })
       if (res.success) setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
     } catch { alert('Gagal update status') }
   }
@@ -217,14 +283,18 @@ export default function Pesanan({ dark }) {
       const isLaminating = nama.includes('laminating')
       const isScan = nama.includes('scan')
       const isJilid = nama.includes('jilid') && !isCetak
+      const cetakLabel = offlineDetails.sisi_cetak === 'DUA_SISI' ? 'Bolak-Balik' : ''
+      const gramasiLabel = offlineDetails.gramasi || '80gr'
+      const namaSesi = `${cetakLabel ? `${offlineForm.service.nama} - ${cetakLabel}` : offlineForm.service.nama} ${gramasiLabel}`
       if (isCetak) {
-        const hargaBw = parseInt(priceList?.[`harga_cetak_${kertas}_bw`]) || 0
-        const hargaWarna = parseInt(priceList?.[`harga_cetak_${kertas}_color`]) || 0
+        const gr = offlineDetails.gramasi || '80gr'
+        const hargaBw = parseInt(priceList?.[`harga_cetak_${kertas}_${gr}_bw`]) || parseInt(priceList?.[`harga_cetak_${kertas}_bw`]) || 0
+        const hargaWarna = parseInt(priceList?.[`harga_cetak_${kertas}_${gr}_color`]) || parseInt(priceList?.[`harga_cetak_${kertas}_color`]) || 0
         if (offlineDetails.colorMode === 'Campur') {
-          if (offlineDetails.bwPages > 0) items.push({ nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (Hitam Putih)`, harga_satuan: hargaBw, jumlah: parseInt(offlineDetails.bwPages) * copies })
-          if (offlineDetails.colorPages > 0) items.push({ nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (Berwarna)`, harga_satuan: hargaWarna, jumlah: parseInt(offlineDetails.colorPages) * copies })
+          if (offlineDetails.bwPages > 0) items.push({ nama_barang: `${namaSesi} ${offlineDetails.paperSize} (Hitam Putih)`, harga_satuan: hargaBw, jumlah: parseInt(offlineDetails.bwPages) * copies })
+          if (offlineDetails.colorPages > 0) items.push({ nama_barang: `${namaSesi} ${offlineDetails.paperSize} (Berwarna)`, harga_satuan: hargaWarna, jumlah: parseInt(offlineDetails.colorPages) * copies })
         } else {
-          items.push({ nama_barang: `${offlineForm.service.nama} - ${offlineDetails.paperSize} (${offlineDetails.colorMode})`, harga_satuan: offlineDetails.colorMode === 'Berwarna' ? hargaWarna : hargaBw, jumlah: (parseInt(offlineDetails.totalPages) || 1) * copies })
+          items.push({ nama_barang: `${namaSesi} ${offlineDetails.paperSize} (${offlineDetails.colorMode})`, harga_satuan: offlineDetails.colorMode === 'Berwarna' ? hargaWarna : hargaBw, jumlah: (parseInt(offlineDetails.totalPages) || 1) * copies })
         }
         if (offlineDetails.bindingType !== 'Tidak Ada') {
           const type = offlineDetails.bindingType.toLowerCase().split(' ')[0]
@@ -253,12 +323,14 @@ export default function Pesanan({ dark }) {
         nilai_pesanan: hitungTotal(),
         uang_diterima: kasirBayar ? parseInt(kasirBayar) : null,
         kembalian: kasirBayar ? parseInt(kasirBayar) - hitungTotal() : null,
+        sisi_cetak: offlineDetails.sisi_cetak,
+        gramasi: offlineDetails.gramasi,
       })
       if (res.success) {
         setSubmitSuccess('Pesanan Berhasil Disimpan!')
         setTimeout(() => setSubmitSuccess(''), 3000)
         setOfflineForm({ name: '', phone: '', service: null, notes: '' })
-        setOfflineDetails({ copies: 1, totalPages: 1, paperSize: 'A4', colorMode: 'Hitam Putih', bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0 })
+        setOfflineDetails({ copies: 1, totalPages: 1, paperSize: 'A4', colorMode: 'Hitam Putih', bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0, sisi_cetak: 'SATU_SISI', gramasi: '80gr', metode_pengiriman: 'AMBIL' })
         setKasirBayar('')
         fetchOrders(); setActiveTab('list')
       }
@@ -340,6 +412,11 @@ export default function Pesanan({ dark }) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Cari pesanan..." className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 transition" />
             </div>
+            <select value={filterKey} onChange={e => { setFilterKey(e.target.value); setPage(1) }} className="text-sm px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none">
+              {Object.entries(FILTER_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{FILTER_ICONS[key]} {label}</option>
+              ))}
+            </select>
             <button onClick={fetchOrders} className="p-2 rounded-lg border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition">
               <RefreshCw size={15} />
             </button>
@@ -355,7 +432,7 @@ export default function Pesanan({ dark }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      {["ID", "Pelanggan", "Layanan", "File", "Total", "Pembayaran", "Status", "Aksi"].map(h => (
+                      {["ID", "Pelanggan", "Alamat", "Layanan", "File", "Total", "Pembayaran", "Status", "Aksi"].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -371,10 +448,28 @@ export default function Pesanan({ dark }) {
                               <span className={cn('text-[9px] px-1.5 py-0.5 rounded border flex-shrink-0', o.mode_pesanan === 'ONLINE' ? 'bg-startupPurple/10 text-startupPurple border-startupPurple/20' : 'bg-orange-500/10 text-orange-600 border-orange-500/20')}>
                                 {o.mode_pesanan}
                               </span>
+                              <span className={cn('text-[9px] px-1.5 py-0.5 rounded border flex-shrink-0', o.metode_pengiriman === 'DIANTAR' ? 'bg-olaBlue/10 text-olaBlue border-olaBlue/20' : 'bg-olaTosca/10 text-olaTosca border-olaTosca/20')}>
+                                {o.metode_pengiriman === 'DIANTAR' ? '🚚 Diantar' : '🏪 Ambil'}
+                              </span>
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">{o.pelanggan?.nomor_telepon}</div>
                           </td>
-                          <td className="px-4 py-3 text-olaTosca font-medium text-xs">{o.jenis_layanan}</td>
+                          <td className="px-4 py-3 text-xs">
+                            {o.metode_pengiriman === 'DIANTAR' ? (
+                              <span className="text-muted-foreground truncate max-w-[160px] inline-block align-middle" title={o.alamat_pengiriman || ''}>{o.alamat_pengiriman || '-'}</span>
+                            ) : (
+                              <span className="text-muted-foreground/50">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-olaTosca font-medium text-xs">
+                            {o.jenis_layanan}
+                            {o.sisi_cetak === 'DUA_SISI' && (
+                              <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-olaBlue/10 text-olaBlue border border-olaBlue/20 font-semibold">Bolak-Balik</span>
+                            )}
+                            {o.gramasi && o.gramasi !== '80gr' && (
+                              <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 border border-purple-500/20 font-semibold">{o.gramasi}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             {o.nama_file
                               ? <a href={`${API_BASE_URL}/uploads/${o.nama_file}`} target="_blank" rel="noreferrer" className="text-olaBlue hover:underline flex items-center gap-1 text-xs"><FileText size={12}/> File</a>
@@ -402,9 +497,14 @@ export default function Pesanan({ dark }) {
                         </tr>
                         {expandedOrderId === o.id && (
                           <tr className="bg-muted/10 border-b border-border">
-                            <td colSpan="8" className="px-4 py-4 pl-10">
-                              <div className="bg-card border border-border rounded-xl p-4 max-w-2xl text-sm">
-                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Rincian Pesanan</h4>
+                             <td colSpan="9" className="px-4 py-4 pl-10">
+                               <div className="bg-card border border-border rounded-xl p-4 max-w-2xl text-sm">
+                                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Rincian Pesanan</h4>
+                                 {o.metode_pengiriman === 'DIANTAR' && o.alamat_pengiriman && (
+                                   <div className="text-xs text-muted-foreground mb-3 pb-3 border-b border-border">
+                                     📍 {o.alamat_pengiriman}
+                                   </div>
+                                 )}
                                 {o.barangTerbeli?.length > 0 ? (
                                   <>
                                     <ul className="space-y-2 mb-3">
@@ -421,11 +521,72 @@ export default function Pesanan({ dark }) {
                                       <span>Subtotal</span>
                                       <span className="font-bold text-foreground">Rp {o.barangTerbeli.reduce((s, i) => s + i.harga_satuan * i.jumlah, 0).toLocaleString('id-ID')}</span>
                                     </div>
+                                    {o.metode_pengiriman === 'DIANTAR' && (
+                                      <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
+                                        <span className="text-xs text-muted-foreground">Ongkir</span>
+                                        {editingOngkir === o.id ? (
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="number"
+                                              value={ongkirValue}
+                                              onChange={e => setOngkirValue(e.target.value)}
+                                              className="w-24 px-2 py-1 text-xs bg-background border border-border rounded"
+                                              min="0"
+                                            />
+                                            <button onClick={async () => {
+                                              try {
+                                                await ordersAPI.update(o.id, { ongkir: parseInt(ongkirValue) || 0 })
+                                                setEditingOngkir(null)
+                                                fetchOrders()
+                                              } catch { alert('Gagal update ongkir') }
+                                            }} className="text-xs px-2 py-1 bg-olaTosca text-white rounded font-medium">Simpan</button>
+                                            <button onClick={() => setEditingOngkir(null)} className="text-xs px-2 py-1 border border-border rounded text-muted-foreground">Batal</button>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-bold text-foreground">{o.ongkir ? `Rp ${o.ongkir.toLocaleString('id-ID')}` : '-'}</span>
+                                            <button onClick={() => { setEditingOngkir(o.id); setOngkirValue(o.ongkir?.toString() || '0') }} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground transition">Edit</button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div className="flex justify-between text-xs font-semibold pt-2 mt-2 border-t border-border">
+                                      <span>Total</span>
+                                      <span className="font-bold text-foreground">Rp {(o.barangTerbeli.reduce((s, i) => s + i.harga_satuan * i.jumlah, 0) + (o.ongkir || 0)).toLocaleString('id-ID')}</span>
+                                    </div>
                                   </>
                                 ) : <p className="text-xs text-muted-foreground">Tidak ada rincian.</p>}
                                 {o.catatan_pesanan && (
                                   <div className="text-xs text-muted-foreground italic border-t border-border pt-2 mt-2">
                                     Catatan: "{o.catatan_pesanan}"
+                                  </div>
+                                )}
+                                {o.mode_pesanan === 'ONLINE' && (
+                                  <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
+                                    <span className="text-xs text-muted-foreground">Status Bayar</span>
+                                    {editingPaymentStatus === o.id ? (
+                                      <div className="flex items-center gap-2">
+                                        <select value={paymentStatusValue} onChange={e => setPaymentStatusValue(e.target.value)} className="text-xs px-2 py-1 bg-background border border-border rounded">
+                                          <option value="pending">Pending</option>
+                                          <option value="settlement">Lunas</option>
+                                          <option value="cancel">Cancel</option>
+                                          <option value="expire">Expire</option>
+                                        </select>
+                                        <button onClick={async () => {
+                                          try {
+                                            await ordersAPI.updateStatus(o.id, { status: o.status, payment_status: paymentStatusValue })
+                                            setEditingPaymentStatus(null)
+                                            fetchOrders()
+                                          } catch { alert('Gagal update status bayar') }
+                                        }} className="text-xs px-2 py-1 bg-olaTosca text-white rounded font-medium">Simpan</button>
+                                        <button onClick={() => setEditingPaymentStatus(null)} className="text-xs px-2 py-1 border border-border rounded text-muted-foreground">Batal</button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <PaymentBadge status={o.payment_status} />
+                                        <button onClick={() => { setEditingPaymentStatus(o.id); setPaymentStatusValue(o.payment_status || 'pending') }} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground transition">Edit</button>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -529,6 +690,24 @@ export default function Pesanan({ dark }) {
                         <label className="block text-xs font-medium text-muted-foreground mb-1.5">Jilid Sekalian?</label>
                         <select value={offlineDetails.bindingType} onChange={e => setOfflineDetails({...offlineDetails, bindingType: e.target.value})} className={cn(selectClass, 'w-auto min-w-[200px]')}>
                           <option>Tidak Ada</option><option>Lakban Biasa</option><option>Softcover</option><option>Hardcover</option><option>Spiral</option>
+                        </select>
+                      </div>
+                    )}
+                    {isCetakService && (
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Sisi Cetak</label>
+                        <select value={offlineDetails.sisi_cetak} onChange={e => setOfflineDetails({...offlineDetails, sisi_cetak: e.target.value})} className={selectClass}>
+                          <option value="SATU_SISI">Satu Sisi</option>
+                          <option value="DUA_SISI">Dua Sisi (Bolak-Balik)</option>
+                        </select>
+                      </div>
+                    )}
+                    {isCetakService && (
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gramasi Kertas</label>
+                        <select value={offlineDetails.gramasi} onChange={e => setOfflineDetails({...offlineDetails, gramasi: e.target.value})} className={selectClass}>
+                          <option value="70gr">70gr</option>
+                          <option value="80gr">80gr</option>
                         </select>
                       </div>
                     )}

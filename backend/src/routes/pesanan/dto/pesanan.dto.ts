@@ -56,6 +56,22 @@ export class CreatePesananDto {
   @IsNotEmpty()
   nilai_pesanan!: number;
 
+  @IsString()
+  @IsOptional()
+  sisi_cetak?: string;
+
+  @IsString()
+  @IsOptional()
+  gramasi?: string;
+
+  @IsString()
+  @IsOptional()
+  metode_pengiriman?: string;
+
+  @IsString()
+  @IsOptional()
+  alamat_pengiriman?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ItemPesananDto)
@@ -79,10 +95,34 @@ export class UpdatePesananDto {
   @IsNumber()
   @IsOptional()
   nilai_pesanan?: number;
+
+  @IsString()
+  @IsOptional()
+  sisi_cetak?: string;
+
+  @IsString()
+  @IsOptional()
+  gramasi?: string;
+
+  @IsString()
+  @IsOptional()
+  metode_pengiriman?: string;
+
+  @IsString()
+  @IsOptional()
+  alamat_pengiriman?: string;
+
+  @IsNumber()
+  @IsOptional()
+  ongkir?: number;
 }
 
 export class UpdateStatusPesananDto {
   @IsEnum(StatusPesanan)
   @IsNotEmpty()
   status!: StatusPesanan;
+
+  @IsString()
+  @IsOptional()
+  payment_status?: string;
 }

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `pesanan` ADD COLUMN `sisi_cetak` VARCHAR(191) NOT NULL DEFAULT 'SATU_SISI';

@@ -177,11 +177,25 @@ export default function Riwayat() {
                           <div className="flex items-center gap-3 mb-1">
                             <h3 className="font-display text-xl font-semibold text-dark tracking-tight leading-none">
                               {order.jenis_layanan}
+                              {order.sisi_cetak === 'DUA_SISI' && (
+                                <span className="ml-2 text-[10px] uppercase font-bold tracking-widest bg-olaBlue/10 text-olaBlue px-2 py-0.5 rounded">
+                                  Bolak-Balik
+                                </span>
+                              )}
                             </h3>
                             {/* Mode Badge Mini */}
                             <span className="text-[10px] uppercase font-bold tracking-widest bg-light-gray px-2 py-0.5 rounded text-neutral-text">
                               {order.mode_pesanan}
                             </span>
+                            {order.metode_pengiriman && (
+                              <span className={`text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded ${
+                                order.metode_pengiriman === 'DIANTAR'
+                                  ? 'bg-blue-50 text-blue-600'
+                                  : 'bg-green-50 text-green-600'
+                              }`}>
+                                {order.metode_pengiriman === 'DIANTAR' ? '🚚 Diantar' : '🏪 Ambil'}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-neutral-text font-medium">
                             <Icon icon="solar:calendar-linear" className="text-base" />
