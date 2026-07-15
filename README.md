@@ -1,203 +1,58 @@
-```markdown
-## Project Structure
-```text
-.
-|-- backend
-|   |-- src
-|   |   |-- auth
-|   |   |   |-- index.ts
-|   |   |-- prisma
-|   |   |   |-- migrations
-|   |   |   |   |-- 0_initialize
-|   |   |   |   |   |-- migration.sql
-|   |   |   |   |-- 20260128050732_update_pesanan
-|   |   |   |   |   |-- migration.sql
-|   |   |   |   |-- 20260416000000_phase2_data_integrity
-|   |   |   |   |   |-- migration.sql
-|   |   |   |   |-- 20260416092600_add_midtrans_fields
-|   |   |   |   |   |-- migration.sql
-|   |   |   |   |-- migration_lock.toml
-|   |   |   |-- schema
-|   |   |   |   |-- akun_pelanggan.prisma
-|   |   |   |   |-- barang_terbeli.prisma
-|   |   |   |   |-- data_layanan.prisma
-|   |   |   |   |-- konfigurasi.prisma
-|   |   |   |   |-- pelanggan.prisma
-|   |   |   |   |-- pesanan.prisma
-|   |   |   |   |-- schema.prisma
-|   |   |   |   |-- stok_barang.prisma
-|   |   |   |-- index.ts
-|   |   |-- routes
-|   |   |   |-- akun-pelanggan
-|   |   |   |   |-- dto
-|   |   |   |   |   |-- akun-pelanggan.dto.ts
-|   |   |   |   |-- index.ts
-|   |   |   |-- auth
-|   |   |   |   |-- dto
-|   |   |   |   |   |-- login.dto.ts
-|   |   |   |   |-- index.ts
-|   |   |   |-- barang-terbeli
-|   |   |   |   |-- dto
-|   |   |   |   |   |-- barang-terbeli.dto.ts
-|   |   |   |   |-- index.ts
-|   |   |   |-- data-layanan
-|   |   |   |   |-- dto
-|   |   |   |   |   |-- data-layanan.dto.ts
-|   |   |   |   |-- index.ts
-|   |   |   |-- konfigurasi
-|   |   |   |   |-- index.ts
-|   |   |   |-- payment
-|   |   |   |   |-- index.ts
-|   |   |   |-- pelanggan
-|   |   |   |   |-- dto
-|   |   |   |   |   |-- pelanggan.dto.ts
-|   |   |   |   |-- index.ts
-|   |   |   |-- pesanan
-|   |   |   |   |-- dto
-|   |   |   |   |   |-- pesanan.dto.ts
-|   |   |   |   |-- index.ts
-|   |   |   |-- stats
-|   |   |   |   |-- index.ts
-|   |   |   |-- stok-barang
-|   |   |   |   |-- dto
-|   |   |   |   |   |-- stok-barang.dto.ts
-|   |   |   |   |-- index.ts
-|   |   |   |-- upload
-|   |   |   |   |-- index.ts
-|   |   |   |-- index.ts
-|   |   |   |-- README.md
-|   |   |   |-- root.ts
-|   |   |-- types
-|   |   |   |-- express.d.ts
-|   |   |   |-- index.ts
-|   |   |-- utils
-|   |   |   |-- prisma.ts
-|   |   |   |-- validation.ts
-|   |   |-- app.ts
-|   |   |-- index.ts
-|   |   |-- seed.ts
-|   |-- uploads/
-|   |-- .dockerignore
-|   |-- .env.example
-|   |-- Dockerfile
-|   |-- nodemon.json
-|   |-- package.json
-|   |-- prisma.config.ts
-|   |-- README.md
-|   |-- tsconfig.json
-|-- frontend
-|   |-- admin
-|   |   |-- src
-|   |   |   |-- components
-|   |   |   |   |-- GlassTable.jsx
-|   |   |   |   |-- Modal.jsx
-|   |   |   |   |-- Pagination.jsx
-|   |   |   |   |-- Section.jsx
-|   |   |   |   |-- Sidebar.jsx
-|   |   |   |   |-- StatCard.jsx
-|   |   |   |   |-- Topbar.jsx
-|   |   |   |-- config
-|   |   |   |   |-- constants.js
-|   |   |   |-- examples
-|   |   |   |   |-- api-integration-examples.jsx
-|   |   |   |   |-- ProdukWithAPI.example.jsx
-|   |   |   |-- hooks
-|   |   |   |   |-- useAuth.js
-|   |   |   |   |-- useForm.js
-|   |   |   |   |-- usePagination.js
-|   |   |   |   |-- useTheme.js
-|   |   |   |-- pages
-|   |   |   |   |-- AdminDashboard.jsx
-|   |   |   |   |-- AdminLogin.jsx
-|   |   |   |   |-- AkunPelanggan.jsx
-|   |   |   |   |-- Dashboard.jsx
-|   |   |   |   |-- Layanan.jsx
-|   |   |   |   |-- Pengaturan.jsx
-|   |   |   |   |-- Pengguna.jsx
-|   |   |   |   |-- Pesanan.jsx
-|   |   |   |   |-- Produk.jsx
-|   |   |   |-- services
-|   |   |   |   |-- api.js
-|   |   |   |-- App.jsx
-|   |   |   |-- index.css
-|   |   |   |-- main.jsx
-|   |   |-- .dockerignore
-|   |   |-- API_REFERENCE.md
-|   |   |-- index.html
-|   |   |-- package.json
-|   |   |-- postcss.config.cjs
-|   |   |-- tailwind.config.cjs
-|   |   |-- TESTING_GUIDE.md
-|   |   |-- vite.config.mjs
-|   |-- user
-|   |   |-- src
-|   |   |   |-- components
-|   |   |   |   |-- Button.jsx
-|   |   |   |   |-- Card.jsx
-|   |   |   |   |-- Input.jsx
-|   |   |   |   |-- Navbar.jsx
-|   |   |   |   |-- Select.jsx
-|   |   |   |   |-- ServiceCard.jsx
-|   |   |   |   |-- Textarea.jsx
-|   |   |   |-- config
-|   |   |   |   |-- constants.js
-|   |   |   |-- contexts
-|   |   |   |   |-- AuthContext.jsx
-|   |   |   |   |-- ConfigContext.jsx
-|   |   |   |-- hooks
-|   |   |   |   |-- useAuth.js
-|   |   |   |   |-- useForm.js
-|   |   |   |-- pages
-|   |   |   |   |-- Auth.jsx
-|   |   |   |   |-- FloatingHistory.jsx
-|   |   |   |   |-- Kontak.jsx
-|   |   |   |   |-- LandingPage.jsx
-|   |   |   |   |-- Order.jsx
-|   |   |   |   |-- Riwayat.jsx
-|   |   |   |   |-- Services.jsx
-|   |   |   |-- services
-|   |   |   |   |-- api.js
-|   |   |   |-- App.jsx
-|   |   |   |-- index.css
-|   |   |   |-- main.jsx
-|   |   |-- .dockerignore
-|   |   |-- index.html
-|   |   |-- package.json
-|   |   |-- postcss.config.cjs
-|   |   |-- README.md
-|   |   |-- tailwind.config.cjs
-|   |   |-- vite.config.mjs
-|   |-- .env.example
-|   |-- package.json
-|-- README.md
+# OLA ATK — Aplikasi Manajemen Percetakan & ATK
+
+Sistem manajemen percetakan dan ATK berbasis web dengan dua antarmuka: **User** (Rina — order online) dan **Admin** (Pak Budi — POS kasir).
+
+---
+
+## Fitur
+
+| Fitur | Status | Keterangan |
+|-------|--------|------------|
+| Order online | ✅ | Upload file + spek cetak |
+| Cetak Bolak-Balik | ✅ | Toggle satu/dua sisi |
+| Delivery / Ambil | ✅ | Ongkir + alamat pengiriman |
+| Gramasi Kertas | ✅ | 70gr / 80gr + 8 key gramasi cetak |
+| Color Detect | ✅ | Scan pixel per-halaman, warning kalo BW tp file warna |
+| DOCX Scan | ✅ | Convert DOCX→PDF via CloudConvert, scan warna per-page |
+| Payment Midtrans | ✅ | createToken (no DB) + confirmPayment (DB after pay) |
+| Filter Admin | ✅ | Single dropdown 15 pilihan |
+| WA OTP | ❌ Blocked | Nunggu Fonnte API key |
+
+---
+
+## Arsitektur
+
 ```
+backend/        — Express 5 REST API (port 8080) + Prisma (MySQL)
+frontend/
+  admin/        — Vite + React 18 (port 5174) — POS & Dashboard
+  user/         — Vite + React 18 (port 5173) — Order Online
+```
+
+---
 
 ## Prasyarat
 
-Pastikan sudah terinstall:
 - [Node.js](https://nodejs.org/) v18+
-- [Laragon](https://laragon.org/) (untuk MySQL)
+- [Laragon](https://laragon.org/) (MySQL)
+- [Midtrans Sandbox Account](https://dashboard.midtrans.com/)
+- (Opsional) [CloudConvert Account](https://cloudconvert.com) — untuk DOCX scan
 
 ---
 
 ## Setup Pertama Kali
 
-### 1. Clone Repository
+### 1. Clone & Masuk
 
 ```sh
 git clone <repo-url>
 cd OlaATK
 ```
 
-### 2. Setup Backend
+### 2. Backend
 
 ```sh
 cd backend
-```
-
-Copy file konfigurasi:
-
-```sh
 cp .env.example .env
 ```
 
@@ -211,12 +66,13 @@ DATABASE_USER="root"
 DATABASE_PASSWORD=""
 DATABASE_NAME="ola_db"
 DATABASE_URL="mysql://root:@127.0.0.1:3306/ola_db"
-ADMIN_USERNAME="isi_email_admin"
-ADMIN_PASSWORD="isi_password_admin"
+ADMIN_USERNAME="admin@email.com"
+ADMIN_PASSWORD="password123"
 JWT_SECRET="generate_dengan_perintah_di_bawah"
 MIDTRANS_SERVER_KEY="SB-Mid-server-xxxxxxxx"
 MIDTRANS_CLIENT_KEY="SB-Mid-client-xxxxxxxx"
 MIDTRANS_IS_PRODUCTION="false"
+CLOUDCONVERT_API_KEY="api_key_dari_cloudconvert"
 ```
 
 Generate `JWT_SECRET`:
@@ -225,24 +81,17 @@ Generate `JWT_SECRET`:
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-Copy output perintah tersebut dan paste sebagai nilai `JWT_SECRET` di `.env`.
-
-Install dependencies dan generate Prisma client:
+Install & setup database:
 
 ```sh
 npm install
 npx prisma generate
 ```
 
-### 3. Setup Frontend
+### 3. Frontend
 
 ```sh
 cd ../frontend
-```
-
-Copy file konfigurasi:
-
-```sh
 cp .env.example .env
 ```
 
@@ -253,7 +102,7 @@ VITE_API_URL=http://127.0.0.1:8080
 VITE_MIDTRANS_CLIENT_KEY=SB-Mid-client-xxxxxxxx
 ```
 
-Install dependencies (sekali untuk semua app):
+Install dependencies:
 
 ```sh
 npm install
@@ -263,9 +112,9 @@ npm install
 
 ## Setup Database
 
-Pastikan **Laragon sudah berjalan** dan MySQL aktif.
+Pastikan Laragon berjalan dan MySQL aktif.
 
-**Jika database BELUM ADA / mau reset bersih (fresh setup):**
+**Fresh setup:**
 
 ```sh
 cd backend
@@ -273,9 +122,7 @@ npm run db:reset
 npm run seed
 ```
 
-**Jika database SUDAH ADA dan mau ikut skema terbaru:**
-
-> ⚠️ Lakukan ini jika sudah pernah setup sebelumnya dan ada perubahan skema baru.
+**Update skema (jika sudah pernah setup):**
 
 ```sh
 cd backend
@@ -287,80 +134,83 @@ npx prisma generate
 
 ## Menjalankan Project
 
-### Jalankan Backend
+### Backend
 
 ```sh
 cd backend
 npm run start:dev
 ```
 
-Backend berjalan di: `http://127.0.0.1:8080`
+`http://127.0.0.1:8080`
 
-### Jalankan Frontend
+### Frontend
 
 ```sh
 cd frontend
-npm run dev:all
-```
-
-Atau jalankan terpisah:
-
-```sh
-npm run dev:user   # http://localhost:5173
-npm run dev:admin  # http://localhost:5173/admin
+npm run dev:all        # Admin + User barengan
+npm run dev:user       # http://localhost:5173
+npm run dev:admin      # http://localhost:5173/admin
 ```
 
 ---
 
-## Kredensial Default
+## Database Migrations
 
-| Role | Username/Email | Password |
-| :--- | :--- | :--- |
-| Admin | sesuai `.env` `ADMIN_USERNAME` | sesuai `.env` `ADMIN_PASSWORD` |
-| User | daftar via halaman `/auth` | — |
+```
+20260715074126_add_sisi_cetak/              → R2 (Bolak-Balik)
+20260715074706_add_metode_pengiriman_ongkir/ → R3 (Delivery)
+20260715075219_add_gramasi/                 → R4 (Gramasi)
+20260715082039_add_alamat_pengiriman/       → R3 (Alamat Pengiriman)
+```
 
 ---
 
-## Testing Pembayaran (Sandbox)
+## API Endpoints
 
-Untuk testing integrasi Midtrans di local, backend perlu diexpose ke internet menggunakan ngrok.
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| POST | `/payment/create-token` | Generate Midtrans token — NO DB writes |
+| POST | `/payment/confirm` | Create records after payment + verify Midtrans |
+| POST | `/payment/notification` | Webhook Midtrans |
+| POST | `/pesanan/public` | Create pesanan (guest) |
+| PUT | `/pesanan/:id` | Update ongkir/pengiriman/alamat |
+| PUT | `/pesanan/:id/status` | Update status + payment_status |
+| GET | `/pesanan` | Filter: mode, pengiriman, payment_status, jenis, status, search |
+| POST | `/upload/file` | Upload file (base64) |
+| POST | `/upload/scan-docx` | **[BARU]** DOCX → CloudConvert → PDF → scan warna |
+
+---
+
+## Testing Pembayaran (Midtrans Sandbox)
 
 ### Setup ngrok
 
-Install ngrok:
-
 ```sh
 winget install Ngrok.Ngrok
-```
-
-Daftar di https://ngrok.com, lalu setup authtoken:
-
-```sh
-ngrok config add-authtoken <token_dari_dashboard_ngrok>
-```
-
-Jalankan ngrok di terminal terpisah (pastikan backend sudah jalan):
-
-```sh
+ngrok config add-authtoken <token>
 ngrok http 8080
 ```
 
-Copy URL yang muncul (contoh: `https://xxxx.ngrok-free.dev`), lalu set di Midtrans Sandbox Dashboard:
-
-**Settings → Configuration → URL notifikasi pembayaran:**
+Set URL notifikasi di **Midtrans Dashboard → Settings → Configuration**:
 
 ```
 https://xxxx.ngrok-free.dev/payment/notification
 ```
 
-> ⚠️ URL ngrok berubah setiap kali ngrok di-restart. Update URL notifikasi di Midtrans dashboard setiap kali ngrok dijalankan ulang.
-
-### Kartu Test Sandbox
+### Kartu Test
 
 | Field | Value |
-| :--- | :--- |
-| Nomor kartu | 4811 1111 1111 1114 |
-| Expiry | 01/25 |
-| CVV | 123 |
-| OTP | 112233 |
-```
+|-------|-------|
+| Nomor kartu | `4811 1111 1111 1114` |
+| Expiry | `01/28` |
+| CVV | `123` |
+| OTP | `112233` |
+
+---
+
+## Kredensial
+
+| Role | Keterangan |
+|------|-----------|
+| Admin | sesuai `.env` `ADMIN_USERNAME` / `ADMIN_PASSWORD` |
+| User | Daftar via halaman `/auth` |
