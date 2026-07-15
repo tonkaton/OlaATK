@@ -583,7 +583,7 @@ export default function Produk({ dark }) {
                       <p className="text-xs font-medium text-foreground truncate">{p.nama}</p>
                       <p className="text-[10px] text-muted-foreground">{formatRupiah(p.totalRevenue)}</p>
                     </div>
-                    <span className="text-xs font-bold text-olaTosca shrink-0">{p.totalJumlah}x</span>
+                    <span className="text-xs font-bold text-olaTosca shrink-0">{p.totalJumlah}</span>
                   </div>
                 ))}
               </div>

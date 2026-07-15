@@ -554,7 +554,7 @@ function TabKalender() {
                       <div className="mt-1.5 ml-1 pl-2 border-l-2 border-olaTosca/30 space-y-0.5">
                         {d.produk.map((p, pIdx) => (
                           <p key={pIdx} className="text-[10px] text-muted-foreground">
-                            {p.jumlah}x {p.nama} — {formatRupiah(p.harga_satuan * p.jumlah)}
+                            {p.jumlah} {p.nama} — {formatRupiah(p.harga_satuan * p.jumlah)}
                           </p>
                         ))}
                       </div>
@@ -613,7 +613,7 @@ function TabTerlaris() {
     let y = pdfHeader(doc, 'Laporan Produk & Layanan Terlaris', `Periode: ${periodLabel} · ${topProducts.length} item`)
     y = pdfTable(doc,
       ['#', 'Nama Produk / Layanan', 'Terjual', 'Revenue (Rp)'],
-      topProducts.map((p, i) => [i + 1, p.nama, `${p.totalJumlah}x`, formatRupiah(p.totalRevenue)]),
+      topProducts.map((p, i) => [i + 1, p.nama, `${p.totalJumlah}`, formatRupiah(p.totalRevenue)]),
       [12, 93, 25, 50],
       y
     )
@@ -670,7 +670,7 @@ function TabTerlaris() {
                   <p className="text-xs font-medium text-foreground truncate">{p.nama}</p>
                   <p className="text-[10px] text-muted-foreground">{formatRupiah(p.totalRevenue)}</p>
                 </div>
-                <span className="text-xs font-bold text-olaTosca">{p.totalJumlah}x</span>
+                <span className="text-xs font-bold text-olaTosca">{p.totalJumlah}</span>
               </div>
             ))}
           </div>
