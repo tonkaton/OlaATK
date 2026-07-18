@@ -63,7 +63,7 @@ export class OlaATKBackendApp {
 			Object.entries(methods).forEach(([uncastedMethod, handler]) => {
 				const method = uncastedMethod as Method;
 
-				this.app[method](path, async (req: express.Request, res: express.Response) => {
+				(this.app as any)[method](path, async (req: express.Request, res: express.Response) => {
 					try {
 						// Apply auth middleware
 						authMiddleware(req);
