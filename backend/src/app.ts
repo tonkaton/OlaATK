@@ -21,9 +21,14 @@ export class OlaATKBackendApp {
 	private setupExpress() {
 		this.app = express();
 
-		// Enable CORS for frontend
+		// Enable CORS for frontend — origins dari env (dipisah koma)
+		const corsOrigins = (process.env['CORS_ORIGINS'] || 'http://localhost:5173,http://localhost:5174,http://localhost,http://127.0.0.1')
+			.split(',')
+			.map(s => s.trim())
+			.filter(Boolean);
+
 		this.app.use(cors({
-			origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost', 'http://127.0.0.1'],
+			origin: corsOrigins,
 			credentials: true,
 			methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 			allowedHeaders: ['Content-Type', 'Authorization']

@@ -5,7 +5,7 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   envDir: '../',
-  base: '/admin',
+  base: process.env.VITE_BASE_PATH || '/admin',
   server: { port: 5173 },
   resolve: {
     alias: {
