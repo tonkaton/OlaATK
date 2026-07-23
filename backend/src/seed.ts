@@ -278,14 +278,14 @@ async function seed() {
     ["Cutter biasa yg kecil", 6000, "PCS"],
     ["Lakban Putih Besar", 12000, "PCS"],
   ];
-  const createdStok = await Promise.all(
-    RAW_STOK.map((r) => {
-      const [nama, harga] = r as [string, number];
-      const satuan: string = (r[2] as string) || "PCS";
-      const isi: number | null = (r[3] as number | undefined) ?? null;
-      return prisma.stokBarang.create({ data: { nama, harga_satuan: harga, jumlah_stok: 0, satuan, isi_per_satuan: isi } });
-    })
-  );
+  const createdStok: any[] = [];
+  for (const r of RAW_STOK) {
+    const [nama, harga] = r as [string, number];
+    const satuan: string = (r[2] as string) || "PCS";
+    const isi: number | null = (r[3] as number | undefined) ?? null;
+    const stok = await prisma.stokBarang.create({ data: { nama, harga_satuan: harga, jumlah_stok: 0, satuan, isi_per_satuan: isi } });
+    createdStok.push(stok);
+  }
 
   // ── 5. Reset stok ke jumlah awal yang besar ──
   console.log("Resetting stok barang to initial large quantities...");
