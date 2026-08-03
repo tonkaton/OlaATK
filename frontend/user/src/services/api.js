@@ -62,6 +62,14 @@ export const authAPI = {
     const response = await api.get(`/pelanggan/${userId}`)
     return response.data
   },
+  sendOtp: async (phone) => {
+    const response = await api.post('/otp/send', { phone })
+    return response.data
+  },
+  verifyOtp: async (phone, code) => {
+    const response = await api.post('/otp/verify', { phone, code })
+    return response.data
+  },
 }
 
 // Services API
@@ -193,6 +201,17 @@ export const paymentAPI = {
   },
   confirmPayment: async (confirmData) => {
     const response = await api.post('/payment/confirm', confirmData)
+    return response.data
+  },
+}
+
+export const otpAPI = {
+  send: async (email) => {
+    const response = await api.post('/otp/send', { email })
+    return response.data
+  },
+  verify: async (email, code) => {
+    const response = await api.post('/otp/verify', { email, code })
     return response.data
   },
 }

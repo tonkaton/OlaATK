@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Icon } from '@iconify/react'
-import { servicesAPI, uploadAPI, authAPI, paymentAPI } from '../services/api'
+import { servicesAPI, uploadAPI, authAPI, paymentAPI, otpAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { API_BASE_URL } from '../config/constants'
 import Input from '../components/Input'
@@ -18,7 +18,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 export default function Order() {
   const { isAuthenticated, user } = useAuth()
 
-  const [contactForm, setContactForm] = useState({ name: '', phone: '', alamat: '' })
+  const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '', alamat: '' })
   const [selectedService, setSelectedService] = useState(null)
   const [priceList, setPriceList] = useState(null)
 
@@ -50,6 +50,13 @@ export default function Order() {
   const [error, setError] = useState('')
   const [loadingServices, setLoadingServices] = useState(true)
 
+  const [otpModal, setOtpModal] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
+  const [testOtpStatus, setTestOtpStatus] = useState(null) // 'sending' | 'sent' | 'error'
+  const pendingPayloadRef = React.useRef(null)
+
   const [alamatMode, setAlamatMode] = useState('default')
   const userAlamatRef = useRef('')
   const [colorDetect, setColorDetect] = useState({ status: 'idle', colorPages: [], colorCount: 0, bwCount: 0 })
@@ -76,7 +83,7 @@ export default function Order() {
           if (response.success && response.data?.pelanggan) {
             const { nama_lengkap, nomor_telepon, alamat } = response.data.pelanggan
             userAlamatRef.current = alamat || ''
-            setContactForm({ name: nama_lengkap || '', phone: nomor_telepon || '', alamat: alamat || '' })
+            setContactForm({ name: nama_lengkap || '', phone: nomor_telepon || '', email: '', alamat: alamat || '' })
           }
         } catch (err) { console.error(err) }
       }
@@ -325,7 +332,7 @@ export default function Order() {
     e.preventDefault()
     setError('')
 
-    if (!contactForm.name || !contactForm.phone) return setError('Nama dan nomor WA wajib diisi')
+    if (!contactForm.name || !contactForm.phone || !contactForm.email) return setError('Nama, nomor WA, dan email wajib diisi')
     if (orderDetails.metode_pengiriman === 'DIANTAR' && !contactForm.alamat) return setError('Alamat pengiriman wajib diisi')
     const isPrintService = selectedService?.nama.toLowerCase().includes('print') || selectedService?.nama.toLowerCase().includes('cetak')
     if (isPrintService && !file && !uploadedFileName) return setError('Mohon upload dokumen yang ingin dicetak')
@@ -370,54 +377,82 @@ export default function Order() {
         }
       }
 
-      const tokenResponse = await paymentAPI.createToken(orderPayload)
+      // Kirim OTP ke email dulu
+      const otpRes = await otpAPI.send(contactForm.email)
+      if (!otpRes.success) return setError(otpRes.message || 'Gagal mengirim OTP')
 
-      if (!tokenResponse.success) {
-        return setError(tokenResponse.message || 'Gagal membuat transaksi')
-      }
-
-      const { snap_token, order_id } = tokenResponse.data
-
-      // Simpan data buat confirmPayment setelah bayar
-      const pendingOrder = { ...orderPayload, order_id, snap_token }
-      sessionStorage.setItem('pending_order', JSON.stringify(pendingOrder))
-
-      setPaymentPending(true)
-      window.snap.pay(snap_token, {
-        onSuccess: async () => {
-          try {
-            const saved = JSON.parse(sessionStorage.getItem('pending_order'))
-            if (saved) await paymentAPI.confirmPayment(saved)
-          } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
-          sessionStorage.removeItem('pending_order')
-          setPaymentPending(false)
-          resetForm()
-          navigate('/riwayat')
-        },
-        onPending: async () => {
-          try {
-            const saved = JSON.parse(sessionStorage.getItem('pending_order'))
-            if (saved) await paymentAPI.confirmPayment(saved)
-          } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
-          sessionStorage.removeItem('pending_order')
-          setPaymentPending(false)
-          resetForm()
-          navigate('/riwayat')
-        },
-        onError: () => {
-          setPaymentPending(false)
-          setError('Pembayaran gagal. Silakan coba lagi.')
-        },
-        onClose: () => {
-          sessionStorage.removeItem('pending_order')
-          setPaymentPending(false)
-        },
-      })
+      pendingPayloadRef.current = orderPayload
+      setOtpCode('')
+      setOtpError('')
+      setOtpModal(true)
     } catch (err) {
       console.error(err)
       setError('Terjadi kesalahan sistem')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const runPayment = async (orderPayload) => {
+    const tokenResponse = await paymentAPI.createToken(orderPayload)
+    if (!tokenResponse.success) {
+      setError(tokenResponse.message || 'Gagal membuat transaksi')
+      return
+    }
+
+    const { snap_token, order_id } = tokenResponse.data
+    const pendingOrder = { ...orderPayload, order_id, snap_token }
+    sessionStorage.setItem('pending_order', JSON.stringify(pendingOrder))
+
+    setPaymentPending(true)
+    window.snap.pay(snap_token, {
+      onSuccess: async () => {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem('pending_order'))
+          if (saved) await paymentAPI.confirmPayment(saved)
+        } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
+        sessionStorage.removeItem('pending_order')
+        setPaymentPending(false)
+        resetForm()
+        navigate('/riwayat')
+      },
+      onPending: async () => {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem('pending_order'))
+          if (saved) await paymentAPI.confirmPayment(saved)
+        } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
+        sessionStorage.removeItem('pending_order')
+        setPaymentPending(false)
+        resetForm()
+        navigate('/riwayat')
+      },
+      onError: () => {
+        setPaymentPending(false)
+        setError('Pembayaran gagal. Silakan coba lagi.')
+      },
+      onClose: () => {
+        sessionStorage.removeItem('pending_order')
+        setPaymentPending(false)
+      },
+    })
+  }
+
+  const handleOtpVerify = async () => {
+    if (!otpCode || otpCode.length !== 6) { setOtpError('Masukkan kode OTP 6 digit'); return }
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      const res = await otpAPI.verify(contactForm.email, otpCode)
+      if (res.success) {
+        setOtpModal(false)
+        await runPayment(pendingPayloadRef.current)
+      } else {
+        setOtpError(res.message || 'Kode OTP salah')
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Kode OTP salah')
+    } finally {
+      setOtpLoading(false)
     }
   }
 
@@ -487,6 +522,39 @@ export default function Order() {
                   placeholder="08xxxxxxxx"
                   required
                 />
+                <div>
+                  <Input
+                    label="Email"
+                    name="email"
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) => { handleContactChange(e); setTestOtpStatus(null) }}
+                    placeholder="email@example.com"
+                    required
+                  />
+                  <button
+                    type="button"
+                    disabled={!contactForm.email || testOtpStatus === 'sending'}
+                    onClick={async () => {
+                      setTestOtpStatus('sending')
+                      try {
+                        const res = await otpAPI.send(contactForm.email)
+                        setTestOtpStatus(res.success ? 'sent' : 'error')
+                      } catch { setTestOtpStatus('error') }
+                    }}
+                    className="mt-2 text-xs flex items-center gap-1.5 text-neutral-text hover:text-dark transition-colors disabled:opacity-40"
+                  >
+                    {testOtpStatus === 'sending' ? (
+                      <><Icon icon="svg-spinners:ring-resize" className="text-sm" /> Mengirim OTP...</>
+                    ) : testOtpStatus === 'sent' ? (
+                      <><Icon icon="solar:check-circle-bold" className="text-sm text-green-500" /> OTP terkirim ke email</>
+                    ) : testOtpStatus === 'error' ? (
+                      <><Icon icon="solar:danger-circle-bold" className="text-sm text-red-500" /> Gagal kirim OTP</>
+                    ) : (
+                      <><Icon icon="solar:letter-linear" className="text-sm" /> Kirim OTP Test</>
+                    )}
+                  </button>
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-dark mb-3 uppercase tracking-wider">Metode Pengiriman</label>
                   <div className="flex bg-light-gray p-1.5 rounded-xl border border-border">
@@ -893,6 +961,76 @@ export default function Order() {
           onClose={() => setShowColorModal(false)}
         />
       </div>
+
+      {/* OTP Modal */}
+      <AnimatePresence>
+        {otpModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl"
+            >
+              <div className="text-center mb-6">
+                <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon icon="solar:letter-bold" className="text-3xl text-blue-500" />
+                </div>
+                <h3 className="font-display text-xl font-semibold text-dark">Verifikasi Email</h3>
+                <p className="text-sm text-neutral-text mt-2">
+                  Kode OTP dikirim ke <span className="font-medium text-dark">{contactForm.email}</span>
+                </p>
+              </div>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="123456"
+                className="w-full text-center text-3xl font-bold tracking-[0.5em] border-2 border-border rounded-xl p-4 focus:border-dark outline-none transition-colors"
+                autoFocus
+              />
+
+              {otpError && (
+                <p className="text-red-500 text-sm text-center mt-3 flex items-center justify-center gap-1">
+                  <Icon icon="solar:danger-circle-bold" />
+                  {otpError}
+                </p>
+              )}
+
+              <Button
+                type="button"
+                variant="primary"
+                className="w-full mt-5"
+                disabled={otpLoading}
+                onClick={handleOtpVerify}
+              >
+                {otpLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Icon icon="svg-spinners:ring-resize" className="text-xl" />
+                    Memverifikasi...
+                  </span>
+                ) : 'Verifikasi & Lanjut Bayar'}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setOtpModal(false)}
+                className="w-full mt-3 text-sm text-neutral-text hover:text-dark transition-colors"
+              >
+                Batal
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

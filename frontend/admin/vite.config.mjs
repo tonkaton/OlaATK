@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     envDir: '../',
     base: env.VITE_BASE_PATH || '/admin',
-    server: { port: 5173 },
+    server: { port: 5176 },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

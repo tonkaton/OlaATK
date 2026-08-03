@@ -11,6 +11,7 @@ import uploadRoutes from "./upload/index.js";
 import statsRoutes from "./stats/index.js";
 import konfigurasiRoutes from "./konfigurasi/index.js";
 import paymentRoutes from "./payment/index.js";
+import otpRoutes from "./otp/index.js";
 
 export const routes: RouteDefinitions = {
 	"/": rootRoute,
@@ -25,4 +26,5 @@ export const routes: RouteDefinitions = {
 	...uploadRoutes,
 	...statsRoutes,
 	...konfigurasiRoutes,
+	...otpRoutes,
 };

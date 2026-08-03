@@ -14,11 +14,11 @@ export default function Auth() {
   const [tab, setTab] = useState('login')
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
-  
+
   // FIX: State untuk fitur mata (Toggle Password)
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
-  
+
   const navigate = useNavigate()
   const { login } = useAuth()
 
@@ -37,13 +37,13 @@ export default function Auth() {
           username: values.emailOrPhone,
           password: values.password
         })
-        
+
         if (response.success && response.data) {
           await login(response.data.token, {
             userId: response.data.userId,
             userType: response.data.userType
           })
-          
+
           setSuccessMessage('Login berhasil!')
           setTimeout(() => {
             navigate('/')
@@ -118,9 +118,9 @@ export default function Auth() {
           <div className="text-center mb-8">
             {/* FIX: Border dan Shadow dihapus biar logo blend-in alami */}
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 overflow-hidden">
-              <img 
-                src="/logo3.jpg" 
-                alt="Logo" 
+              <img
+                src="/logo3.jpg"
+                alt="Logo"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.style.display = 'none';
@@ -216,9 +216,9 @@ export default function Auth() {
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
                   className="absolute right-3 bottom-2.5 p-1 text-neutral-light hover:text-dark transition-colors"
                 >
-                  <Icon 
-                    icon={showLoginPassword ? "solar:eye-linear" : "solar:eye-closed-linear"} 
-                    className="text-xl" 
+                  <Icon
+                    icon={showLoginPassword ? "solar:eye-linear" : "solar:eye-closed-linear"}
+                    className="text-xl"
                   />
                 </button>
               </div>
@@ -298,9 +298,9 @@ export default function Auth() {
                   onClick={() => setShowRegisterPassword(!showRegisterPassword)}
                   className="absolute right-3 bottom-2.5 p-1 text-neutral-light hover:text-dark transition-colors"
                 >
-                  <Icon 
-                    icon={showRegisterPassword ? "solar:eye-linear" : "solar:eye-closed-linear"} 
-                    className="text-xl" 
+                  <Icon
+                    icon={showRegisterPassword ? "solar:eye-linear" : "solar:eye-closed-linear"}
+                    className="text-xl"
                   />
                 </button>
               </div>
