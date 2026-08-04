@@ -73,6 +73,19 @@ const pelangganRoutes: RouteDefinitions = {
 
 			try {
 				const prisma = await getPrismaClient();
+
+				// Kalau nomor sudah ada (pernah order sebelumnya), pakai pelanggan yang ada
+				const existing = await prisma.pelanggan.findUnique({
+					where: { nomor_telepon: dto.nomor_telepon },
+				});
+				if (existing) {
+					return {
+						success: true,
+						statusCode: 200,
+						data: { pelanggan: existing },
+					};
+				}
+
 				const newPelanggan = await prisma.pelanggan.create({
 					data: {
 						nama_lengkap: dto.nama_lengkap,
@@ -87,6 +100,7 @@ const pelangganRoutes: RouteDefinitions = {
 					data: { pelanggan: newPelanggan },
 				};
 			} catch (error) {
+				console.error("Error creating pelanggan:", error);
 				return {
 					success: false,
 					message: "Failed to create pelanggan",

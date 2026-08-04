@@ -87,6 +87,14 @@ const akunPelangganRoutes: RouteDefinitions = {
                     data: { akunPelanggan: newAkunPelanggan },
                 };
             } catch (error) {
+                if ((error as any)?.code === 'P2002') {
+                    return {
+                        success: false,
+                        statusCode: 409,
+                        message: "Email atau nomor telepon sudah terdaftar",
+                    };
+                }
+                console.error("Error creating akun pelanggan:", error);
                 return {
                     success: false,
                     message: "Failed to create akun pelanggan",

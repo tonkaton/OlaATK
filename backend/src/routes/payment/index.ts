@@ -1,6 +1,7 @@
 import type { RouteDefinitions } from "../../types/index.js";
 import { getPrismaClient } from "../../prisma/index.js";
 import midtransClient from "midtrans-client";
+import { sendEmail } from "../../utils/mailer.js";
 
 const getSnapClient = () => {
   return new midtransClient.Snap({
@@ -151,7 +152,7 @@ const paymentRoutes: RouteDefinitions = {
     post: async (req) => {
       try {
         const {
-          nama_lengkap, nomor_telepon, alamat, alamat_pengiriman,
+          nama_lengkap, nomor_telepon, email: emailFromOrder, alamat, alamat_pengiriman,
           jenis_layanan, nama_file, catatan_pesanan,
           metode_pengiriman, specs,
           order_id, snap_token
@@ -186,6 +187,10 @@ const paymentRoutes: RouteDefinitions = {
             data: { nama_lengkap, nomor_telepon, alamat: alamat ?? null },
           });
         }
+
+        // Kalau pelanggan punya akun terdaftar, pakai email akun untuk receipt
+        const akun = await prisma.akunPelanggan.findUnique({ where: { id_pelanggan: pelanggan.id } });
+        const receiptEmail = akun?.email ?? emailFromOrder;
 
         // Buat pesanan
         const newPesanan = await prisma.$transaction(async (tx) => {
@@ -241,6 +246,30 @@ const paymentRoutes: RouteDefinitions = {
           if (verifyError?.ApiResponse?.status_code !== '404') {
             console.error("Midtrans verify error (non-fatal):", verifyError);
           }
+        }
+
+        // Kirim receipt ke email (non-blocking)
+        if (receiptEmail) {
+          const metodeLabel = metode_pengiriman === 'DIANTAR' ? 'Diantar' : 'Ambil di Toko';
+          const receiptText = [
+            `Halo ${nama_lengkap},`,
+            ``,
+            `Terima kasih! Pesanan Anda di Ola ATK telah berhasil dibayar.`,
+            ``,
+            `Detail Pesanan:`,
+            `  ID Pesanan : ${newPesanan.id}`,
+            `  Order ID   : ${order_id}`,
+            `  Layanan    : ${jenis_layanan}`,
+            `  Total      : Rp ${calculatedTotal.toLocaleString('id-ID')}`,
+            `  Pengiriman : ${metodeLabel}`,
+            ...(alamat_pengiriman ? [`  Alamat     : ${alamat_pengiriman}`] : []),
+            ``,
+            `Status pesanan dapat dilihat di halaman Riwayat Pesanan.`,
+            ``,
+            `Ola ATK`,
+          ].join('\n');
+          sendEmail(receiptEmail, `Konfirmasi Pesanan #${newPesanan.id} - Ola ATK`, receiptText)
+            .catch(err => console.error('Receipt email error:', err));
         }
 
         return {

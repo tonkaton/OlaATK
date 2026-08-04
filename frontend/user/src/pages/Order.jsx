@@ -54,6 +54,7 @@ export default function Order() {
   const [otpCode, setOtpCode] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpError, setOtpError] = useState('')
+  const [otpCountdown, setOtpCountdown] = useState(0)
   const [testOtpStatus, setTestOtpStatus] = useState(null) // 'sending' | 'sent' | 'error'
   const pendingPayloadRef = React.useRef(null)
 
@@ -81,9 +82,9 @@ export default function Order() {
         try {
           const response = await authAPI.getPelangganByUserId(user.userId)
           if (response.success && response.data?.pelanggan) {
-            const { nama_lengkap, nomor_telepon, alamat } = response.data.pelanggan
+            const { nama_lengkap, nomor_telepon, alamat, akunPelanggan } = response.data.pelanggan
             userAlamatRef.current = alamat || ''
-            setContactForm({ name: nama_lengkap || '', phone: nomor_telepon || '', email: '', alamat: alamat || '' })
+            setContactForm({ name: nama_lengkap || '', phone: nomor_telepon || '', email: akunPelanggan?.email || '', alamat: alamat || '' })
           }
         } catch (err) { console.error(err) }
       }
@@ -142,6 +143,18 @@ export default function Order() {
       setColorModalType('warning-bw'); setShowColorModal(true)
     }
   }, [orderDetails.colorMode])
+
+  useEffect(() => {
+    if (!otpModal) return
+    setOtpCountdown(300)
+    const interval = setInterval(() => {
+      setOtpCountdown(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [otpModal])
 
   const fetchPrices = async () => {
     try {
@@ -356,6 +369,7 @@ export default function Order() {
       const orderPayload = {
         nama_lengkap: contactForm.name,
         nomor_telepon: contactForm.phone,
+        email: contactForm.email,
         alamat: contactForm.alamat,
         alamat_pengiriman: orderDetails.metode_pengiriman === 'DIANTAR' ? contactForm.alamat : null,
         redirect_url: window.location.origin + '/riwayat',
@@ -407,21 +421,31 @@ export default function Order() {
     setPaymentPending(true)
     window.snap.pay(snap_token, {
       onSuccess: async () => {
-        try {
-          const saved = JSON.parse(sessionStorage.getItem('pending_order'))
-          if (saved) await paymentAPI.confirmPayment(saved)
-        } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
+        const saved = JSON.parse(sessionStorage.getItem('pending_order'))
         sessionStorage.removeItem('pending_order')
+        try {
+          if (saved) await paymentAPI.confirmPayment(saved)
+        } catch (e) {
+          console.error('Gagal konfirmasi pesanan:', e)
+          setPaymentPending(false)
+          setError('Pembayaran berhasil tapi pesanan gagal dikonfirmasi. Hubungi admin.')
+          return
+        }
         setPaymentPending(false)
         resetForm()
         navigate('/riwayat')
       },
       onPending: async () => {
-        try {
-          const saved = JSON.parse(sessionStorage.getItem('pending_order'))
-          if (saved) await paymentAPI.confirmPayment(saved)
-        } catch (e) { console.error('Gagal konfirmasi pesanan:', e) }
+        const saved = JSON.parse(sessionStorage.getItem('pending_order'))
         sessionStorage.removeItem('pending_order')
+        try {
+          if (saved) await paymentAPI.confirmPayment(saved)
+        } catch (e) {
+          console.error('Gagal konfirmasi pesanan:', e)
+          setPaymentPending(false)
+          setError('Pembayaran berhasil tapi pesanan gagal dikonfirmasi. Hubungi admin.')
+          return
+        }
         setPaymentPending(false)
         resetForm()
         navigate('/riwayat')
@@ -453,6 +477,18 @@ export default function Order() {
       setOtpError(err.response?.data?.message || 'Kode OTP salah')
     } finally {
       setOtpLoading(false)
+    }
+  }
+
+  const handleOtpResend = async () => {
+    setOtpError('')
+    setOtpCode('')
+    try {
+      const res = await otpAPI.send(contactForm.email)
+      if (res.success) setOtpCountdown(300)
+      else setOtpError(res.message || 'Gagal mengirim ulang OTP')
+    } catch {
+      setOtpError('Gagal mengirim ulang OTP')
     }
   }
 
@@ -529,6 +565,7 @@ export default function Order() {
                     type="email"
                     value={contactForm.email}
                     onChange={(e) => { handleContactChange(e); setTestOtpStatus(null) }}
+                    disabled={user?.userType === 'user' && !!contactForm.email}
                     placeholder="email@example.com"
                     required
                   />
@@ -1004,6 +1041,25 @@ export default function Order() {
                   {otpError}
                 </p>
               )}
+
+              <div className="text-center mt-3 text-sm text-neutral-text">
+                {otpCountdown > 0 ? (
+                  <span>
+                    Kode kedaluwarsa dalam{' '}
+                    <span className="font-semibold text-dark tabular-nums">
+                      {String(Math.floor(otpCountdown / 60)).padStart(2, '0')}:{String(otpCountdown % 60).padStart(2, '0')}
+                    </span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleOtpResend}
+                    className="text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                  >
+                    Kirim ulang kode OTP
+                  </button>
+                )}
+              </div>
 
               <Button
                 type="button"
