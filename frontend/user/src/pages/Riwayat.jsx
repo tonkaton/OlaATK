@@ -86,14 +86,26 @@ export default function Riwayat() {
       <div className="min-h-screen flex items-center justify-center px-6">
         <Card padding="lg" className="text-center max-w-md border-border shadow-sm">
           <div className="w-20 h-20 bg-light-gray rounded-full flex items-center justify-center mx-auto mb-6">
-            <Icon icon="solar:lock-bold" className="text-4xl text-dark" />
+            <Icon icon="solar:user-rounded-linear" className="text-4xl text-dark" />
           </div>
           <h2 className="font-display text-2xl font-semibold text-dark mb-2 tracking-tight">
-            Akses Ditolak
+            Yuk masuk dulu
           </h2>
           <p className="text-neutral-text text-sm">
-            Silakan masuk ke akun Anda terlebih dahulu untuk melihat riwayat pesanan.
+            Biar kamu bisa pantau status pesanan di sini, masuk pakai email atau nomor HP dulu ya. Belum punya akun? Daftar cuma butuh semenit.
           </p>
+          <a 
+            href="/auth" 
+            className="inline-flex items-center gap-2 bg-dark text-white px-8 py-3 rounded-xl font-semibold hover:bg-dark/90 transition-colors shadow-md mt-6"
+          >
+            Masuk / Daftar <Icon icon="solar:arrow-right-linear" />
+          </a>
+          <a 
+            href="/order" 
+            className="inline-flex items-center gap-1 text-dark font-medium hover:underline transition-all mt-4 text-sm"
+          >
+            Order sekarang <Icon icon="solar:arrow-right-linear" className="text-sm" />
+          </a>
         </Card>
       </div>
     )
