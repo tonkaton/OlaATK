@@ -1029,8 +1029,8 @@ export default function Order() {
               className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl"
             >
               <div className="text-center mb-6">
-                <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Icon icon="solar:letter-bold" className="text-3xl text-blue-500" />
+                <div className="w-14 h-14 bg-light-gray rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon icon="solar:letter-bold" className="text-3xl text-dark" />
                 </div>
                 <h3 className="font-display text-xl font-semibold text-dark">Verifikasi Email</h3>
                 <p className="text-sm text-neutral-text mt-2">
@@ -1068,7 +1068,7 @@ export default function Order() {
                   <button
                     type="button"
                     onClick={handleOtpResend}
-                    className="text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                    className="text-dark hover:underline font-medium transition-colors"
                   >
                     Kirim ulang kode OTP
                   </button>

@@ -96,9 +96,9 @@ export default function Riwayat() {
           </p>
           <a 
             href="/auth" 
-            className="inline-flex items-center gap-2 bg-dark text-white px-8 py-3 rounded-xl font-semibold hover:bg-dark/90 transition-colors shadow-md mt-6"
+            className="inline-flex items-center gap-2 bg-dark text-white px-6 py-2.5 text-sm rounded-xl font-semibold hover:bg-dark/90 transition-colors shadow-md mt-6"
           >
-            Masuk / Daftar <Icon icon="solar:arrow-right-linear" />
+            Masuk / Daftar <Icon icon="solar:arrow-right-linear" className="text-sm" />
           </a>
           <a 
             href="/order" 
