@@ -4,7 +4,7 @@ import { ordersAPI, servicesAPI, productsAPI } from '../services/api'
 import { cn } from '@/lib/utils'
 import {
   PlusCircle, List, FileText, ChevronDown, ChevronUp, CheckCircle,
-  RefreshCw, Calculator, ShoppingCart, Trash2, Search
+  RefreshCw, Calculator, ShoppingCart, Trash2, Search, Copy
 } from 'lucide-react'
 
 const StatusBadge = ({ status }) => {
@@ -101,6 +101,7 @@ export default function Pesanan({ dark }) {
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 10 })
   const [expandedOrderId, setExpandedOrderId] = useState(null)
+  const [copiedCode, setCopiedCode] = useState(null)
   const [filterKey, setFilterKey] = useState("")
   const [editingOngkir, setEditingOngkir] = useState(null) // order id being edited
   const [ongkirValue, setOngkirValue] = useState("")
@@ -499,8 +500,28 @@ export default function Pesanan({ dark }) {
                           <tr className="bg-muted/10 border-b border-border">
                              <td colSpan="9" className="px-4 py-4 pl-10">
                                <div className="bg-card border border-border rounded-xl p-4 max-w-2xl text-sm">
-                                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Rincian Pesanan</h4>
-                                 {o.metode_pengiriman === 'DIANTAR' && o.alamat_pengiriman && (
+                                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Rincian Pesanan</h4>
+                                  {o.tracking_code && (
+                                    <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-border">
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <Search size={13} className="text-olaTosca" />
+                                        <span className="text-muted-foreground">Kode Lacak</span>
+                                        <span className="font-mono font-bold text-foreground">{o.tracking_code}</span>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(o.tracking_code)
+                                          setCopiedCode(o.id)
+                                          setTimeout(() => setCopiedCode(null), 1500)
+                                        }}
+                                        className="flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition"
+                                      >
+                                        {copiedCode === o.id ? <CheckCircle size={11} /> : <Copy size={11} />}
+                                        {copiedCode === o.id ? 'Tersalin!' : 'Salin'}
+                                      </button>
+                                    </div>
+                                  )}
+                                  {o.metode_pengiriman === 'DIANTAR' && o.alamat_pengiriman && (
                                    <div className="text-xs text-muted-foreground mb-3 pb-3 border-b border-border">
                                      📍 {o.alamat_pengiriman}
                                    </div>
