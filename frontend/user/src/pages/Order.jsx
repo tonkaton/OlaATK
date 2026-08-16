@@ -55,6 +55,7 @@ export default function Order() {
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpError, setOtpError] = useState('')
   const [otpCountdown, setOtpCountdown] = useState(0)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const [testOtpStatus, setTestOtpStatus] = useState(null) // 'sending' | 'sent' | 'error'
   const pendingPayloadRef = React.useRef(null)
 
@@ -147,11 +148,11 @@ export default function Order() {
   useEffect(() => {
     if (!otpModal) return
     setOtpCountdown(300)
+    setResendCooldown(60)
+    // Interval hidup selama modal buka — jangan di-clear, biar resend kedua+ tetap jalan
     const interval = setInterval(() => {
-      setOtpCountdown(prev => {
-        if (prev <= 1) { clearInterval(interval); return 0 }
-        return prev - 1
-      })
+      setOtpCountdown(prev => (prev <= 1 ? 0 : prev - 1))
+      setResendCooldown(prev => (prev <= 1 ? 0 : prev - 1))
     }, 1000)
     return () => clearInterval(interval)
   }, [otpModal])
@@ -499,10 +500,13 @@ export default function Order() {
     setOtpCode('')
     try {
       const res = await otpAPI.send(contactForm.email)
-      if (res.success) setOtpCountdown(300)
+      if (res.success) {
+        setOtpCountdown(300)
+        setResendCooldown(60)
+      }
       else setOtpError(res.message || 'Gagal mengirim ulang OTP')
-    } catch {
-      setOtpError('Gagal mengirim ulang OTP')
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Gagal mengirim ulang OTP')
     }
   }
 
@@ -1057,12 +1061,17 @@ export default function Order() {
               )}
 
               <div className="text-center mt-3 text-sm text-neutral-text">
-                {otpCountdown > 0 ? (
+                {otpCountdown > 0 && (
                   <span>
                     Kode kedaluwarsa dalam{' '}
                     <span className="font-semibold text-dark tabular-nums">
                       {String(Math.floor(otpCountdown / 60)).padStart(2, '0')}:{String(otpCountdown % 60).padStart(2, '0')}
                     </span>
+                  </span>
+                )}
+                {resendCooldown > 0 ? (
+                  <span className="text-neutral-light block mt-1">
+                    Kirim ulang dalam {resendCooldown} detik
                   </span>
                 ) : (
                   <button
