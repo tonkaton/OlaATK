@@ -38,5 +38,10 @@
     "nodemon": "^3.1.11",
     "prisma": "^7.2.0",
     "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.5.0": true,
+    "bcrypt@6.0.0": true,
+    "prisma@7.5.0": true
   }
 }

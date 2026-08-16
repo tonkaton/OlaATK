@@ -54,8 +54,8 @@ OlaATK-main/
           stok_barang.prisma
           schema.prisma
   frontend/        # Root npm workspace — workspaces: ["admin", "user"]
-    admin/         # "olaatk_frontend_admin_v2" — Vite base "/admin", port 5173
-    user/          # "olaatk-frontend-fullspa-energetic" — Vite port 5173
+    admin/         # "olaatk_frontend_admin_v2" — Vite base "/admin", port 5176
+    user/          # "olaatk-frontend-fullspa-energetic" — Vite port 5175
 ```
 
 > `backend/` tidak termasuk npm workspaces. `node_modules`-nya sendiri.
@@ -66,13 +66,13 @@ OlaATK-main/
 
 ### Rina — Online User (19-35 thn)
 Mahasiswi/karyawan. Males datang toko. Order via website. Punya smartphone + familiar WA.
-- Akses: `frontend/user/` (port 5173)
-- Flow: Landing → Order (isi WA + upload file + spek) → **OTP WA** → Bayar Midtrans → Riwayat
+- Akses: `frontend/user/` (port 5175)
+- Flow: Landing → Order (isi email + upload file + spek) → **OTP email** → Bayar Midtrans → Riwayat
 - Kena dampak fitur: OTP, bolak-balik, delivery, gramasi, color detect
 
 ### Pak Budi — Walk-In Customer (25-60 thn)
 Guru/tukang/ibu-ibu. Datang langsung ke toko. Dilayani admin via POS.
-- Akses: `frontend/admin/` — dilayani staf via Kasir/Jual Produk (port 5174)
+- Akses: `frontend/admin/` — dilayani staf via Kasir/Jual Produk (port 5176)
 - Flow: Datang → Admin input di Kasir → Bayar tunai → Bawa pulang
 - Kena dampak fitur: bolak-balik, gramasi (via admin form)
 - **TIDAK** kena OTP (admin input langsung, customer di depan mata)
@@ -86,7 +86,7 @@ Guru/tukang/ibu-ibu. Datang langsung ke toko. Dilayani admin via POS.
 - **Entry backend:** `backend/src/app.ts` → class `OlaATKBackendApp` auto-register routes dari `routes/index.ts`
 - **Pola route:** `Record<string, Record<string, handler>>` — tiap handler return `{ success, data?, message? }`, **jangan panggil `res.json()` langsung**
 - **Auth:** Admin kredensial di `.env` (`ADMIN_USERNAME`/`ADMIN_PASSWORD`). User akun di DB pake bcrypt. JWT expiry: 24h admin, 7d user.
-- **OTP:** WA OTP dikirim via **Fonnte** (free 100 msg/hari) ke nomor WA user. User input kode di form web. **BUKAN** user yang kirim pesan ke admin. **Belum implementasi — nunggu API key.**
+- **OTP:** OTP dikirim via **email** (SMTP, nodemailer) ke email user. User input kode di form web. Store in-memory (reset saat restart). **BUKAN** user yang kirim pesan ke admin.
 - **Middleware:** `authMiddleware` jalan di tiap request → handler panggil `requireAuth()`, `requireAdmin()`, atau `requireUser()`
 - **Base URL API:** `http://127.0.0.1:8080` (set via `VITE_API_URL` di `frontend/.env`)
 - **Bahasa:** Indonesia untuk semua string UI, dokumentasi, komentar
@@ -138,11 +138,12 @@ snap_token          String?                          // Midtrans Snap token
 
 ## Fitur Revisi — 5 Request Dosen
 
-### R1 — WA OTP + Rate Limit | **BLOCKED**
-- OTP dikirim ke WA **user** via Fonnte, user input kode di **form web**
-- Rate limit: max 3x request/jam per nomor, max 5x/jam per IP
+### R1 — Email OTP + Rate Limit | **SELESAI**
+- OTP dikirim ke **email** user (SMTP via nodemailer), user input kode di **form web**
+- Rate limit: max **10x kirim/jam per email** + cooldown 60 detik; max **5x percobaan verify** (kode di-invalidate setelah itu)
+- Kode OTP: 6 digit crypto-random (`crypto.randomInt`), TTL 5 menit, single-use
 - Pak Budi (walk-in) **tidak kena OTP**
-- **Blocked:** Nunggu Fonnte API key — **backend route & tabel KodeOtp BELUM dibuat**
+- File: `otp/index.ts`, `utils/mailer.ts`, `Order.jsx`, `api.js`
 
 ### R2 — Cetak Bolak-Balik | **SELESAI**
 - Toggle: "Satu Sisi" / "Dua Sisi (Bolak-Balik)"
@@ -254,28 +255,27 @@ Backend handle di `GET /pesanan` — tiap filter value mapping ke param yang ses
 
 ---
 
-## WA API (Fonnte) — Belum Aktif
+## SMTP (Email OTP & Receipt)
 
 | Detail | |
 |--------|-|
-| Platform | [Fonnte](https://fonnte.com) — gratis 100 msg/hari |
-| Endpoint | `POST https://api.fonnte.com/send` |
-| Payload | `{ target: "08xxx", message: "Kode OTP: 482910", countryCode: "62" }` |
-| Header | `Authorization: {FONNTE_API_KEY}` |
-| Env var | `FONNTE_API_KEY` di `backend/.env` |
+| Kegunaan | Kirim kode OTP ke email user + receipt pesanan setelah bayar |
+| Package | `nodemailer` |
+| File | `backend/src/utils/mailer.ts` |
+| Env var | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` di `backend/.env` |
 
 ---
 
 ## Hal-Hal yang Gampang Kelewatan
 
 - **Express 5** — bukan Express 4; penanganan error `express.json()` manual
-- **CORS** cuma ngizinin `localhost:5173` dan `localhost:5174`
+- **CORS** — default di `app.ts` izinin `localhost:5173/5174/5175/5176` + `127.0.0.1`; di-production set `CORS_ORIGINS` di `.env`
 - **Upload file:** base64 POST ke `/upload/file`, max 15MB, tipe: PDF/DOC/DOCX/JPG/PNG
 - **Base64 regex:** MIME type DOCX mengandung titik (`wordprocessingml.document`) — regex harus `^data:[^;]+;base64,` bukan `^data:([A-Za-z-+\/]+);base64,`
 - **Payment webhook:** butuh ngrok buat testing Midtrans notification lokal
 - **localStorage admin vs user beda key:** `olaatk_admin_token` vs `ola_auth_token` (biar gak tabrakan kalo dibuka di browser yang sama)
 - **Order `BATAL` rollback stok:** increment `stok_barang.stok`
-- **Guest checkout tetap bisa** — (OTP belum aktif, nunggu Fonnte API key)
+- **Guest checkout tetap bisa** — OTP email wajib diisi di form Order sebelum bayar (guest ga perlu akun)
 - **Payment createToken = zero DB writes:** Kalo user tutup browser, gak ada data sampah. DB cuma di-create pas confirmPayment.
 - **confirmPayment verifikasi Midtrans:** Langsung panggil `transaction.status(order_id)` — kalo settlement auto-set `status: 'DIPROSES'`
 - **Harga per-page (bukan per-sheet):** Sheet pricing udah diretik. Bolak-balik 2 halaman = 2 × harga.

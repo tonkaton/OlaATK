@@ -62,14 +62,6 @@ export const authAPI = {
     const response = await api.get(`/pelanggan/${userId}`)
     return response.data
   },
-  sendOtp: async (phone) => {
-    const response = await api.post('/otp/send', { phone })
-    return response.data
-  },
-  verifyOtp: async (phone, code) => {
-    const response = await api.post('/otp/verify', { phone, code })
-    return response.data
-  },
 }
 
 // Services API
