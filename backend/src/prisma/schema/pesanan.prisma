@@ -33,6 +33,7 @@ model Pesanan {
   alamat_pengiriman String?
 
   midtrans_order_id String?         @unique
+  tracking_code     String?         @unique
   payment_status    String?
   snap_token        String?
 

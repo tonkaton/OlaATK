@@ -54,6 +54,7 @@ export default function Navbar(){
             <NavLink to="/" label="Beranda" />
             <NavLink to="/services" label="Layanan" />
             <NavLink to="/order" label="Pemesanan" />
+            <NavLink to="/track" label="Lacak" />
             {isUserLoggedIn && <NavLink to="/riwayat" label="Riwayat" />}
             <NavLink to="/kontak" label="Kontak" />
           </div>
@@ -127,6 +128,7 @@ export default function Navbar(){
               <MobileNavLink to="/" label="Beranda" />
               <MobileNavLink to="/services" label="Layanan" />
               <MobileNavLink to="/order" label="Pemesanan" />
+              <MobileNavLink to="/track" label="Lacak" />
               {isUserLoggedIn && <MobileNavLink to="/riwayat" label="Riwayat" />}
               <MobileNavLink to="/kontak" label="Kontak" />
               

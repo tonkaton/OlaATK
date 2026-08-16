@@ -424,7 +424,14 @@ export default function Order() {
         const saved = JSON.parse(sessionStorage.getItem('pending_order'))
         sessionStorage.removeItem('pending_order')
         try {
-          if (saved) await paymentAPI.confirmPayment(saved)
+          if (saved) {
+            const res = await paymentAPI.confirmPayment(saved)
+            const kode = res.data?.tracking_code
+            setPaymentPending(false)
+            resetForm()
+            navigate(kode ? `/track?kode=${kode}` : '/riwayat')
+            return
+          }
         } catch (e) {
           console.error('Gagal konfirmasi pesanan:', e)
           setPaymentPending(false)
@@ -439,7 +446,14 @@ export default function Order() {
         const saved = JSON.parse(sessionStorage.getItem('pending_order'))
         sessionStorage.removeItem('pending_order')
         try {
-          if (saved) await paymentAPI.confirmPayment(saved)
+          if (saved) {
+            const res = await paymentAPI.confirmPayment(saved)
+            const kode = res.data?.tracking_code
+            setPaymentPending(false)
+            resetForm()
+            navigate(kode ? `/track?kode=${kode}` : '/riwayat')
+            return
+          }
         } catch (e) {
           console.error('Gagal konfirmasi pesanan:', e)
           setPaymentPending(false)

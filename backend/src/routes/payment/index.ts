@@ -2,6 +2,7 @@ import type { RouteDefinitions } from "../../types/index.js";
 import { getPrismaClient } from "../../prisma/index.js";
 import midtransClient from "midtrans-client";
 import { sendEmail } from "../../utils/mailer.js";
+import { generateTrackingCode } from "../../utils/tracking.js";
 
 const getSnapClient = () => {
   return new midtransClient.Snap({
@@ -208,6 +209,7 @@ const paymentRoutes: RouteDefinitions = {
               metode_pengiriman: metode_pengiriman || "AMBIL",
               alamat_pengiriman: alamat_pengiriman ?? null,
               midtrans_order_id: order_id,
+              tracking_code: generateTrackingCode(),
               payment_status: 'pending',
               snap_token,
             },
@@ -257,6 +259,7 @@ const paymentRoutes: RouteDefinitions = {
             `Terima kasih! Pesanan Anda di Ola ATK telah berhasil dibayar.`,
             ``,
             `Detail Pesanan:`,
+            `  Kode Lacak : ${newPesanan.tracking_code}`,
             `  ID Pesanan : ${newPesanan.id}`,
             `  Order ID   : ${order_id}`,
             `  Layanan    : ${jenis_layanan}`,
@@ -264,7 +267,8 @@ const paymentRoutes: RouteDefinitions = {
             `  Pengiriman : ${metodeLabel}`,
             ...(alamat_pengiriman ? [`  Alamat     : ${alamat_pengiriman}`] : []),
             ``,
-            `Status pesanan dapat dilihat di halaman Riwayat Pesanan.`,
+            `Lacak status pesananmu kapan saja di situs Ola ATK, menu "Lacak", pakai kode di atas.`,
+            `Atau buka langsung: halaman Lacak Pesanan dan masukkan kode ${newPesanan.tracking_code}.`,
             ``,
             `Ola ATK`,
           ].join('\n');
@@ -278,6 +282,7 @@ const paymentRoutes: RouteDefinitions = {
           data: {
             pesanan_id: newPesanan.id,
             order_id,
+            tracking_code: newPesanan.tracking_code,
           },
         };
       } catch (error) {

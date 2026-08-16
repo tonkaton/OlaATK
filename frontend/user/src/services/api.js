@@ -197,6 +197,14 @@ export const paymentAPI = {
   },
 }
 
+// Tracking API (public — lacak pesanan pake kode)
+export const trackAPI = {
+  getByCode: async (kode) => {
+    const response = await api.get('/pesanan/track', { params: { kode } })
+    return response.data
+  },
+}
+
 export const otpAPI = {
   send: async (email) => {
     const response = await api.post('/otp/send', { email })

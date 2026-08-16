@@ -199,6 +199,11 @@ export default function Riwayat() {
                             <span className="text-[10px] uppercase font-bold tracking-widest bg-light-gray px-2 py-0.5 rounded text-neutral-text">
                               {order.mode_pesanan}
                             </span>
+                            {order.tracking_code && (
+                              <span className="text-[10px] uppercase font-bold tracking-widest bg-olaBlue/10 text-olaBlue px-2 py-0.5 rounded">
+                                {order.tracking_code}
+                              </span>
+                            )}
                             {order.metode_pengiriman && (
                               <span className={`text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded ${
                                 order.metode_pengiriman === 'DIANTAR'

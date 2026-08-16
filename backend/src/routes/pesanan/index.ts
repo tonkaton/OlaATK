@@ -3,6 +3,21 @@ import { getPrismaClient } from "../../prisma/index.js";
 import { validateDto } from "../../utils/validation.js";
 import { CreatePesananDto, UpdatePesananDto, UpdateStatusPesananDto } from "./dto/pesanan.dto.js";
 import { requireAuth, requireAdmin } from "../../auth/index.js";
+import { normalizeTrackingCode, toSearchCode } from "../../utils/tracking.js";
+
+// ponytail: in-memory rate limit per IP (15 req/menit), reset saat restart
+const trackLog = new Map<string, number[]>();
+const TRACK_LIMIT_PER_MIN = 15;
+
+function checkTrackLimit(ip: string): boolean {
+  const now = Date.now();
+  const windowAgo = now - 60 * 1000;
+  const history = (trackLog.get(ip) ?? []).filter((t) => t > windowAgo);
+  if (history.length >= TRACK_LIMIT_PER_MIN) return false;
+  history.push(now);
+  trackLog.set(ip, history);
+  return true;
+}
 
 function getStockQty(jumlah: number, satuanBeli: string | undefined, stokBarang: { satuan: string | null; isi_per_satuan: number | null }): number {
   if (!satuanBeli || satuanBeli === (stokBarang.satuan || "PCS") || !stokBarang.isi_per_satuan) return jumlah;
@@ -169,7 +184,60 @@ const pesananRoutes: RouteDefinitions = {
   },
 
   // ==========================================
-  // 2. PUBLIC ENDPOINT (NO AUTH - FOR USER & OFFLINE POS)
+  // 2. PUBLIC TRACK BY KODE (NO AUTH)
+  //    WAJIB sebelum "/pesanan/:id" biar ga ke-match :id
+  // ==========================================
+  "/pesanan/track": {
+    get: async (req) => {
+      const ip = req.ip || (req as any).socket?.remoteAddress || "unknown";
+      if (!checkTrackLimit(ip)) {
+        return { success: false, statusCode: 429, message: "Terlalu banyak percobaan. Tunggu sebentar, ya." };
+      }
+
+      const rawKode = (req.query?.['kode'] as string | undefined)?.trim();
+      if (!rawKode) return { success: false, statusCode: 400, message: "Kode pesanan wajib diisi" };
+
+      const normalized = normalizeTrackingCode(rawKode);
+      if (normalized.length < 6 || normalized.length > 9) {
+        return { success: false, statusCode: 400, message: "Format kode pesanan tidak valid" };
+      }
+
+      try {
+        const prisma = await getPrismaClient();
+        const pesanan = await prisma.pesanan.findUnique({
+          where: { tracking_code: toSearchCode(normalized) },
+          select: {
+            tracking_code: true,
+            jenis_layanan: true,
+            status: true,
+            payment_status: true,
+            created_at: true,
+            updated_at: true,
+            nilai_pesanan: true,
+            sisi_cetak: true,
+            gramasi: true,
+            metode_pengiriman: true,
+            ongkir: true,
+            alamat_pengiriman: true,
+            barangTerbeli: { select: { nama_barang: true, harga_satuan: true, jumlah: true } },
+            pelanggan: { select: { nama_lengkap: true } },
+          },
+        });
+
+        if (!pesanan) {
+          return { success: false, statusCode: 404, message: "Kode tidak ditemukan. Cek email konfirmasi kamu." };
+        }
+
+        return { success: true, data: { pesanan } };
+      } catch (error) {
+        console.error("Error tracking pesanan:", error);
+        return { success: false, message: "Gagal melacak pesanan" };
+      }
+    },
+  },
+
+  // ==========================================
+  // 3. PUBLIC ENDPOINT (NO AUTH - FOR USER & OFFLINE POS)
   // ==========================================
   "/pesanan/public": {
     post: async (req) => {

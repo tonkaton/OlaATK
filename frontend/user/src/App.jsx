@@ -13,6 +13,7 @@ import Order from './pages/Order'
 import Auth from './pages/Auth'
 import Kontak from './pages/Kontak'
 import Riwayat from './pages/Riwayat'
+import Track from './pages/Track'
 import FloatingHistory from './pages/FloatingHistory'
 
 export default function App(){
@@ -35,6 +36,7 @@ export default function App(){
               <Route path="/order" element={<Order />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/riwayat" element={<Riwayat />} />
+              <Route path="/track" element={<Track />} />
             </Routes>
           </main>
 
