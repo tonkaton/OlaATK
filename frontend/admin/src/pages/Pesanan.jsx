@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { API_BASE_URL } from '../config/constants'
-import { ordersAPI, servicesAPI, productsAPI } from '../services/api'
+import { ordersAPI, servicesAPI, productsAPI, usersAPI } from '../services/api'
 import { cn } from '@/lib/utils'
 import {
   PlusCircle, List, FileText, ChevronDown, ChevronUp, CheckCircle,
-  RefreshCw, Calculator, ShoppingCart, Trash2, Search, Copy
+  RefreshCw, Calculator, ShoppingCart, Trash2, Search, Copy, X
 } from 'lucide-react'
 
 const StatusBadge = ({ status }) => {
@@ -36,6 +36,101 @@ const PaymentBadge = ({ status }) => {
 
 const inputClass = "w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 focus:border-olaTosca/60 transition"
 const selectClass = "w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-olaTosca/40 transition"
+
+// Autocomplete pelanggan: min 2 huruf, debounce 400ms, max 5 hasil.
+// Pilih dari dropdown -> nama+HP terkunci (readonly), tombol X buat reset ke manual.
+// ponytail: komponen lokal file ini aja, dipake 2x (Kasir & Jual Produk)
+function CustomerField({ label, name, phone, onNameChange, onPhoneChange }) {
+  const [results, setResults] = useState([])
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const timer = useRef(null)
+
+  const handleNameChange = (v) => {
+    onNameChange(v)
+    setSelected(null)
+    setOpen(false)
+    clearTimeout(timer.current)
+    const q = v.trim()
+    if (q.length < 2) { setLoading(false); return }
+    setLoading(true)
+    timer.current = setTimeout(async () => {
+      try {
+        const res = await usersAPI.getAll(1, q)
+        setResults((res.pelanggan || []).slice(0, 5))
+        setOpen(true)
+      } catch { setResults([]) }
+      finally { setLoading(false) }
+    }, 400)
+  }
+
+  const pick = (c) => {
+    setSelected(c)
+    onNameChange(c.nama_lengkap)
+    onPhoneChange(c.nomor_telepon)
+    setResults([]); setOpen(false); setLoading(false)
+  }
+
+  const clear = () => {
+    clearTimeout(timer.current)
+    setSelected(null)
+    onNameChange(''); onPhoneChange('')
+    setResults([]); setOpen(false); setLoading(false)
+  }
+
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  return (
+    <>
+      <div className="relative">
+        <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+          {label}
+          {selected && <span className="ml-1.5 text-[10px] text-olaTosca font-semibold">✓ Terdaftar</span>}
+        </label>
+        <div className="relative">
+          <input required type="text" value={name} autoComplete="off"
+            placeholder="Ketik nama (min. 2 huruf)..."
+            onChange={e => handleNameChange(e.target.value)}
+            className={cn(inputClass, selected && 'pr-9 border-olaTosca/50 bg-olaTosca/5')}
+          />
+          {selected && (
+            <button type="button" onClick={clear} title="Reset & isi manual"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-destructive transition">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-xl shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+              {loading ? (
+                <div className="p-3 text-center text-xs text-muted-foreground">Mencari...</div>
+              ) : results.length === 0 ? (
+                <div className="p-3 text-center text-xs text-muted-foreground">Pelanggan baru — lanjut isi manual</div>
+              ) : results.map(c => (
+                <button key={c.id} type="button" onClick={() => pick(c)}
+                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-accent flex justify-between items-center gap-2 border-b border-border last:border-0 transition">
+                  <span className="font-medium text-foreground truncate">{c.nama_lengkap}</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{c.nomor_telepon}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground mb-1.5">No. HP</label>
+        <input required type="text" value={phone} placeholder="08xxxxxxxxxx"
+          onChange={e => onPhoneChange(e.target.value)}
+          readOnly={!!selected}
+          className={cn(inputClass, selected && 'opacity-60 cursor-not-allowed')}
+        />
+      </div>
+    </>
+  )
+}
 
 const FILTERS = {
   '':              {},
@@ -129,6 +224,7 @@ export default function Pesanan({ dark }) {
   const [produkSearch, setProdukSearch] = useState('')
   const [cart, setCart] = useState([])
   const [produkForm, setProdukForm] = useState({ name: '', phone: '' })
+  const [lookupKey, setLookupKey] = useState(0) // bump = remount CustomerField kosong setelah submit sukses
   const [produkSubmitLoading, setProdukSubmitLoading] = useState(false)
   const [produkSuccess, setProdukSuccess] = useState('')
   const [produkBayar, setProdukBayar] = useState('')
@@ -270,7 +366,7 @@ export default function Pesanan({ dark }) {
 
   const handleOfflineSubmit = async (e) => {
     e.preventDefault()
-    if (!offlineForm.name || !offlineForm.service) return alert("Wajib isi Nama & Layanan")
+    if (!offlineForm.name || !offlineForm.phone?.trim() || !offlineForm.service) return alert("Wajib isi Nama, No. HP & Layanan")
     if (offlineDetails.colorMode === 'Campur' && offlineDetails.bwPages <= 0 && offlineDetails.colorPages <= 0)
       return alert("Isi jumlah halaman Hitam Putih atau Berwarna!")
     setSubmitLoading(true)
@@ -315,7 +411,7 @@ export default function Pesanan({ dark }) {
       }
       const res = await ordersAPI.createPublic({ 
         nama_lengkap: offlineForm.name, 
-        nomor_telepon: offlineForm.phone || '-', 
+        nomor_telepon: offlineForm.phone.trim(), 
         alamat: '-', 
         jenis_layanan: offlineForm.service.nama, 
         mode_pesanan: 'OFFLINE', 
@@ -331,6 +427,7 @@ export default function Pesanan({ dark }) {
         setSubmitSuccess('Pesanan Berhasil Disimpan!')
         setTimeout(() => setSubmitSuccess(''), 3000)
         setOfflineForm({ name: '', phone: '', service: null, notes: '' })
+        setLookupKey(k => k + 1)
         setOfflineDetails({ copies: 1, totalPages: 1, paperSize: 'A4', colorMode: 'Hitam Putih', bindingType: 'Tidak Ada', bwPages: 0, colorPages: 0, sisi_cetak: 'SATU_SISI', gramasi: '80gr', metode_pengiriman: 'AMBIL' })
         setKasirBayar('')
         fetchOrders(); setActiveTab('list')
@@ -341,12 +438,12 @@ export default function Pesanan({ dark }) {
 
   const handleJualProdukSubmit = async (e) => {
     e.preventDefault()
-    if (!produkForm.name) return alert("Wajib isi Nama Pembeli")
+    if (!produkForm.name || !produkForm.phone?.trim()) return alert("Wajib isi Nama & No. HP Pembeli")
     if (cart.length === 0) return alert("Pilih minimal 1 produk")
     setProdukSubmitLoading(true)
     try {
       const res = await ordersAPI.createPublic({
-        nama_lengkap: produkForm.name, nomor_telepon: produkForm.phone || '-', alamat: '-',
+        nama_lengkap: produkForm.name, nomor_telepon: produkForm.phone.trim(), alamat: '-',
         jenis_layanan: 'Penjualan Produk', mode_pesanan: 'OFFLINE',
         items: cart.map(c => ({
           stok_barang_id: c.product.id,
@@ -363,6 +460,7 @@ export default function Pesanan({ dark }) {
         setProdukSuccess('Penjualan Berhasil!')
         setTimeout(() => setProdukSuccess(''), 3000)
         setCart([]); setProdukForm({ name: '', phone: '' })
+        setLookupKey(k => k + 1)
         setProdukBayar('')
         fetchOrders(); fetchProducts(); setActiveTab('list')
       } else { alert(res.message || 'Gagal') }
@@ -644,14 +742,14 @@ export default function Pesanan({ dark }) {
             )}
             <form onSubmit={handleOfflineSubmit} className="space-y-5">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nama Pelanggan</label>
-                  <input required type="text" value={offlineForm.name} onChange={e => setOfflineForm({...offlineForm, name: e.target.value})} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">No. HP</label>
-                  <input type="text" value={offlineForm.phone} onChange={e => setOfflineForm({...offlineForm, phone: e.target.value})} className={inputClass} />
-                </div>
+                <CustomerField
+                  key={`kasir-${lookupKey}`}
+                  label="Nama Pelanggan"
+                  name={offlineForm.name}
+                  phone={offlineForm.phone}
+                  onNameChange={v => setOfflineForm(f => ({ ...f, name: v }))}
+                  onPhoneChange={v => setOfflineForm(f => ({ ...f, phone: v }))}
+                />
               </div>
 
               <div>
@@ -836,14 +934,14 @@ export default function Pesanan({ dark }) {
             )}
             <form onSubmit={handleJualProdukSubmit} className="space-y-5">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nama Pembeli</label>
-                  <input required type="text" value={produkForm.name} onChange={e => setProdukForm({...produkForm, name: e.target.value})} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">No. HP</label>
-                  <input type="text" value={produkForm.phone} onChange={e => setProdukForm({...produkForm, phone: e.target.value})} className={inputClass} />
-                </div>
+                <CustomerField
+                  key={`produk-${lookupKey}`}
+                  label="Nama Pembeli"
+                  name={produkForm.name}
+                  phone={produkForm.phone}
+                  onNameChange={v => setProdukForm(f => ({ ...f, name: v }))}
+                  onPhoneChange={v => setProdukForm(f => ({ ...f, phone: v }))}
+                />
               </div>
 
               {/* Dropdown produk */}
