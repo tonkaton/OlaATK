@@ -2,3 +2,6 @@ docker-compose.override.yml
 node_modules/
 **/node_modules/
 **/dist/
+
+# catatan pribadi — jangan di-push
+DEPLOY-VPS.md
